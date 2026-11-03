@@ -1,0 +1,2096 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TIM Conferência</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --tim:#004691; --tim-700:#003a78; --tim-900:#0b1f44; --tim-50:#eef4fc; --red:#e30613;
+  --ok:#15803d; --ok-500:#22c55e; --ok-50:#ecfdf3; --ok-100:#d1fadf;
+  --sold:#b45309; --sold-500:#f5b800; --sold-50:#fffaeb; --sold-100:#fef0c7;
+  --miss:#b42318; --miss-500:#ef4444; --miss-50:#fef3f2; --miss-100:#fee4e2;
+  --pend:#475467; --pend-500:#98a2b3; --pend-50:#f9fafb;
+  --extra:#6941c6; --extra-50:#f4f3ff;
+  --bg:#f5f7fa; --surface:#fff; --border:#e4e7ec; --border-2:#d0d5dd;
+  --text:#101828; --text-2:#344054; --muted:#667085; --muted-2:#98a2b3;
+  --radius:12px; --shadow:0 1px 2px rgba(16,24,40,.05); --shadow-lg:0 12px 32px -8px rgba(16,24,40,.18);
+  --mono:"JetBrains Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+aside{background:var(--tim-900);color:#c7d2e6;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:20px 18px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+.brand .logo{background:#fff;border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:10px}
+.brand .logo img{height:30px}
+.brand .logo div{border-left:1px solid var(--border);padding-left:10px;line-height:1.1}
+.brand .logo b{display:block;color:var(--tim);font-size:13px;font-weight:800;letter-spacing:.2px}
+.brand .logo small{color:var(--muted);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+nav{padding:14px 10px;display:flex;flex-direction:column;gap:2px}
+nav .sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:#7d8bab;font-weight:700;padding:12px 12px 6px}
+nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;color:#c7d2e6;text-decoration:none;font-weight:500;cursor:pointer;transition:.15s}
+nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+nav a.on{background:var(--tim);color:#fff;box-shadow:inset 3px 0 0 var(--red)}
+nav a .badge{margin-left:auto;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+nav a.on .badge{background:rgba(255,255,255,.22)}
+.side-foot{margin-top:auto;padding:14px 16px;border-top:1px solid rgba(255,255,255,.08);font-size:12px}
+.side-foot .who{display:flex;align-items:center;gap:10px}
+.avatar{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.side-foot b{color:#fff;display:block;font-size:13px}
+
+.main{display:flex;flex-direction:column;min-width:0}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:20}
+.topbar h1{margin:0;font-size:20px;font-weight:700;letter-spacing:-.2px}
+.topbar .crumb{color:var(--muted);font-size:13px;margin-top:2px}
+.topbar .right{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.datechip{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--pend-50)}
+.content{padding:24px 28px 40px;max-width:1440px;width:100%}
+.view{display:none;animation:fade .2s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------- componentes ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;border-radius:8px;padding:9px 14px;font-weight:600;font-size:13.5px;cursor:pointer;transition:.15s;white-space:nowrap;line-height:1.2}
+.btn svg.i{width:16px;height:16px}
+.btn-primary{background:var(--tim);color:#fff;box-shadow:var(--shadow)}
+.btn-primary:hover{background:var(--tim-700)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{background:#c40511}
+.btn-outline{background:#fff;color:var(--text-2);border-color:var(--border-2);box-shadow:var(--shadow)}
+.btn-outline:hover{background:var(--pend-50)}
+.btn-ghost{background:transparent;color:var(--muted);padding:6px 8px}
+.btn-ghost:hover{background:var(--pend-50);color:var(--text)}
+.btn-sm{padding:6px 10px;font-size:12.5px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.card-h h3{margin:0;font-size:15px;font-weight:700}
+.card-h p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.card-h .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.card-b{padding:20px}
+.row{display:grid;gap:20px}
+.mb{margin-bottom:20px}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:20px}
+.kpi{padding:18px 20px;position:relative;overflow:hidden}
+.kpi .top{display:flex;align-items:center;justify-content:space-between}
+.kpi .lbl{color:var(--muted);font-size:13px;font-weight:500}
+.kpi .ic{width:36px;height:36px;border-radius:9px;display:grid;place-items:center}
+.kpi .val{font-size:30px;font-weight:700;letter-spacing:-.5px;margin-top:10px;font-variant-numeric:tabular-nums}
+.kpi .foot{font-size:12px;color:var(--muted);margin-top:4px}
+.kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+.kpi.t .ic{background:var(--tim-50);color:var(--tim)} .kpi.t::after{background:var(--tim)}
+.kpi.ok .ic{background:var(--ok-50);color:var(--ok)} .kpi.ok::after{background:var(--ok-500)}
+.kpi.sold .ic{background:var(--sold-50);color:var(--sold)} .kpi.sold::after{background:var(--sold-500)}
+.kpi.miss .ic{background:var(--miss-50);color:var(--miss)} .kpi.miss::after{background:var(--miss-500)}
+.kpi.pend .ic{background:var(--pend-50);color:var(--pend)} .kpi.pend::after{background:var(--pend-500)}
+
+/* progresso */
+.prog{height:12px;border-radius:20px;background:var(--pend-50);overflow:hidden;display:flex;border:1px solid var(--border)}
+.prog span{height:100%;transition:width .4s}
+.prog .p-ok{background:var(--ok-500)} .prog .p-sold{background:var(--sold-500)} .prog .p-miss{background:var(--miss-500)}
+.prog-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.prog-meta .pct{font-size:28px;font-weight:700;letter-spacing:-.5px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;font-size:12.5px;color:var(--text-2)}
+.legend span{display:flex;align-items:center;gap:7px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.donut-wrap{display:flex;align-items:center;gap:24px}
+.donut-c{position:relative;width:150px;height:150px;flex-shrink:0}
+.donut-c .center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.donut-c .center b{font-size:24px;display:block}
+.donut-c .center small{color:var(--muted);font-size:11.5px}
+.dl{flex:1;display:flex;flex-direction:column;gap:10px}
+.dl div{display:flex;align-items:center;gap:8px;font-size:13px}
+.dl b{margin-left:auto;font-variant-numeric:tabular-nums}
+.dl em{color:var(--muted);font-style:normal;font-size:12px;width:44px;text-align:right}
+
+/* semana */
+.wk{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px}
+.wk div{padding:14px 16px;border-right:1px solid var(--border)}
+.wk div:last-child{border-right:0}
+.wk small{color:var(--muted);font-size:12px;display:block}
+.wk b{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.chart{display:flex;align-items:flex-end;gap:14px;height:170px;padding:0 4px;border-bottom:1px solid var(--border)}
+.chart .d{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.chart .bars{display:flex;gap:4px;align-items:flex-end;height:100%;width:100%;justify-content:center}
+.chart .bar{width:40%;max-width:22px;border-radius:5px 5px 0 0;min-height:2px;position:relative;transition:height .4s}
+.chart .bar:hover::after{content:attr(data-v);position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;background:var(--text);color:#fff;padding:2px 6px;border-radius:4px}
+.chart-x{display:flex;gap:14px;padding:8px 4px 0}
+.chart-x span{flex:1;text-align:center;font-size:12px;color:var(--muted)}
+.chart-x span.hoje{color:var(--tim);font-weight:700}
+
+/* conferência */
+.scan-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:20px}
+.seg{display:inline-flex;background:var(--pend-50);border:1px solid var(--border);border-radius:10px;padding:4px;gap:4px}
+.seg button{border:0;background:transparent;padding:9px 16px;border-radius:7px;font-weight:600;font-size:13.5px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:8px}
+.seg button.on.conf{background:#fff;color:var(--ok);box-shadow:var(--shadow),0 0 0 1px var(--ok-100)}
+.seg button.on.venda{background:#fff;color:var(--sold);box-shadow:var(--shadow),0 0 0 1px var(--sold-100)}
+.scanbox{position:relative;margin-top:16px}
+.scanbox svg.i{position:absolute;left:18px;top:50%;transform:translateY(-50%);width:26px;height:26px;color:var(--muted-2)}
+.scanbox input{width:100%;font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:1.5px;padding:20px 20px 20px 60px;border:2px solid var(--border-2);border-radius:12px;background:#fff;transition:.15s;color:var(--text)}
+.scanbox input:focus{outline:none;border-color:var(--tim);box-shadow:0 0 0 4px rgba(0,70,145,.12)}
+.scanbox.venda input:focus{border-color:var(--sold-500);box-shadow:0 0 0 4px rgba(245,184,0,.18)}
+.scanbox .live{position:absolute;right:16px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ok);font-weight:600}
+.scanbox .live i{width:8px;height:8px;border-radius:50%;background:var(--ok-500);animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}50%{box-shadow:0 0 0 6px rgba(34,197,94,0)}}
+.hint{color:var(--muted);font-size:12.5px;margin-top:10px;display:flex;align-items:center;gap:6px}
+.hint svg.i{width:14px;height:14px}
+.result{margin-top:18px;border-radius:12px;padding:20px;display:flex;gap:16px;align-items:center;border:1px solid var(--border);background:var(--pend-50);min-height:96px}
+.result .ri{width:52px;height:52px;border-radius:12px;display:grid;place-items:center;flex-shrink:0;background:#fff;color:var(--muted-2);border:1px solid var(--border)}
+.result .ri svg.i{width:26px;height:26px}
+.result h4{margin:0 0 4px;font-size:17px}
+.result p{margin:0;color:var(--text-2);font-size:13px}
+.result code{font-family:var(--mono);font-size:15px;font-weight:600}
+.result.ok{background:var(--ok-50);border-color:var(--ok-100)} .result.ok .ri{background:var(--ok-500);color:#fff;border:0} .result.ok h4{color:var(--ok)}
+.result.sold{background:var(--sold-50);border-color:var(--sold-100)} .result.sold .ri{background:var(--sold-500);color:#fff;border:0} .result.sold h4{color:var(--sold)}
+.result.err{background:var(--miss-50);border-color:var(--miss-100)} .result.err .ri{background:var(--miss-500);color:#fff;border:0} .result.err h4{color:var(--miss)}
+.result.info{background:var(--tim-50);border-color:#cfe0f5} .result.info .ri{background:var(--tim);color:#fff;border:0} .result.info h4{color:var(--tim)}
+.result.flash{animation:flash .35s}
+@keyframes flash{0%{transform:scale(.985)}100%{transform:none}}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+.mini div{border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.mini small{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.mini b{font-size:20px;font-variant-numeric:tabular-nums}
+.feed{list-style:none;margin:0;padding:0;max-height:520px;overflow:auto}
+.feed li{display:flex;align-items:center;gap:12px;padding:11px 20px;border-bottom:1px solid var(--border)}
+.feed li:last-child{border-bottom:0}
+.feed .fi{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
+.feed .fi svg.i{width:15px;height:15px}
+.feed code{font-family:var(--mono);font-size:12.5px;font-weight:600;display:block}
+.feed small{color:var(--muted);font-size:11.5px}
+.feed .del{margin-left:6px;opacity:.55}.feed li:hover .del{opacity:1}
+.feed time{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.empty svg.i{width:40px;height:40px;color:var(--muted-2);margin-bottom:8px}
+.empty b{display:block;color:var(--text-2);font-size:14px;margin-bottom:4px}
+
+/* tabela */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--border)}
+.tabs{display:flex;gap:4px;background:var(--pend-50);border:1px solid var(--border);border-radius:9px;padding:3px;flex-wrap:wrap}
+.tabs button{border:0;background:transparent;padding:7px 12px;border-radius:6px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:7px}
+.tabs button.on{background:#fff;color:var(--text);box-shadow:var(--shadow)}
+.tabs button .n{font-size:11px;background:var(--border);color:var(--text-2);padding:1px 7px;border-radius:10px}
+.search{position:relative;margin-left:auto}
+.search svg.i{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted-2)}
+.search input{padding:9px 12px 9px 34px;border:1px solid var(--border-2);border-radius:8px;width:280px;font-size:13.5px;font-family:inherit}
+.search input:focus{outline:none;border-color:var(--tim);box-shadow:0 0 0 3px rgba(0,70,145,.1)}
+.tbl-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th{background:var(--pend-50);color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;text-align:left;padding:11px 16px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border);color:var(--text-2);vertical-align:middle}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:#fafbfc}
+td.iccid{font-family:var(--mono);font-weight:600;color:var(--text);font-size:13px;white-space:nowrap}
+tr.r-estoque td:first-child{box-shadow:inset 4px 0 0 var(--ok-500)}
+tr.r-vendido td:first-child{box-shadow:inset 4px 0 0 var(--sold-500)}
+tr.r-faltando td:first-child{box-shadow:inset 4px 0 0 var(--miss-500)}
+tr.r-pendente td:first-child{box-shadow:inset 4px 0 0 var(--pend-500)}
+tr.r-extra td:first-child{box-shadow:inset 4px 0 0 var(--extra)}
+tr.r-estoque{background:#f6fef9} tr.r-vendido{background:#fffcf2} tr.r-faltando{background:#fffbfa} tr.r-extra{background:#fbfaff}
+tr.hl{outline:2px solid var(--tim);outline-offset:-2px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.estoque{background:var(--ok-50);color:var(--ok);border:1px solid var(--ok-100)}
+.pill.vendido{background:var(--sold-50);color:var(--sold);border:1px solid var(--sold-100)}
+.pill.faltando{background:var(--miss-50);color:var(--miss);border:1px solid var(--miss-100)}
+.pill.pendente{background:var(--pend-50);color:var(--pend);border:1px solid var(--border)}
+.pill.extra{background:var(--extra-50);color:var(--extra);border:1px solid #d9d6fe}
+.info-cell{font-size:12.5px;color:var(--muted);max-width:340px}
+.info-cell b{color:var(--text-2);font-weight:600}
+.acts{display:flex;gap:4px;justify-content:flex-end}
+.ib{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:#fff;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.ib svg.i{width:15px;height:15px}
+.ib.g:hover{color:var(--ok);border-color:var(--ok-100);background:var(--ok-50)}
+.ib.y:hover{color:var(--sold);border-color:var(--sold-100);background:var(--sold-50)}
+.ib.r:hover{color:var(--miss);border-color:var(--miss-100);background:var(--miss-50)}
+.pager{display:flex;align-items:center;gap:10px;padding:12px 20px;color:var(--muted);font-size:13px}
+.pager .r{margin-left:auto;display:flex;gap:6px}
+
+/* config */
+.form{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--border-2);border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:var(--text)}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--tim);box-shadow:0 0 0 3px rgba(0,70,145,.1)}
+.field .help{font-size:12px;color:var(--muted);margin-top:5px}
+.switch{display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:500}
+.switch input{display:none}
+.switch i{width:38px;height:22px;border-radius:20px;background:var(--border-2);position:relative;transition:.2s}
+.switch i::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.2s;box-shadow:var(--shadow)}
+.switch input:checked+i{background:var(--tim)}
+.switch input:checked+i::after{left:18px}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(16,24,40,.55);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal.on{display:flex;animation:fade .15s}
+.modal .box{background:#fff;border-radius:16px;width:100%;max-width:560px;box-shadow:var(--shadow-lg);overflow:hidden}
+.modal .box.lg{max-width:760px}
+.modal .mh{padding:20px 24px 0;display:flex;gap:14px;align-items:flex-start}
+.modal .mh .mi{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;background:var(--tim-50);color:var(--tim);flex-shrink:0}
+.modal .mh .mi.danger{background:var(--miss-50);color:var(--miss)}
+.modal .mh h3{margin:0;font-size:17px}
+.modal .mh p{margin:4px 0 0;color:var(--muted);font-size:13.5px;line-height:1.5}
+.modal .mb{padding:20px 24px}
+.modal .mf{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;background:var(--pend-50)}
+.modal textarea{font-family:var(--mono);font-size:12.5px;min-height:240px;resize:vertical;white-space:pre;overflow:auto}
+.preview{margin-top:14px;border:1px solid var(--border);border-radius:8px;max-height:180px;overflow:auto;font-size:12px}
+.preview table th,.preview table td{padding:6px 10px;font-size:12px}
+.preview td.sel,.preview th.sel{background:var(--tim-50);color:var(--tim);font-weight:700}
+
+/* toast */
+.toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;z-index:200}
+.toast{background:var(--text);color:#fff;padding:12px 16px;border-radius:10px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;font-size:13.5px;min-width:280px;max-width:420px;animation:slide .25s}
+.toast.ok svg.i{color:var(--ok-500)} .toast.err svg.i{color:var(--miss-500)} .toast.info svg.i{color:#7cb3ff}
+@keyframes slide{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+
+/* relatório */
+.modal .box.xl{max-width:1080px;max-height:92vh;display:flex;flex-direction:column}
+.rel-h{display:flex;align-items:center;gap:16px;padding:20px 24px;border-bottom:1px solid var(--border)}
+.rel-h img{height:34px}
+.rel-h h3{margin:0;font-size:18px}
+.rel-h p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.rel-h .r{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rel-body{padding:20px 24px;overflow:auto}
+.rel-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.rel-kpis div{border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.rel-kpis small{display:block;color:var(--muted);font-size:12px}
+.rel-kpis b{font-size:24px;font-variant-numeric:tabular-nums}
+.rel-nota{background:var(--sold-50);border:1px solid var(--sold-100);color:#7a2e0e;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px}
+.rel-list{border:1px solid var(--border);border-radius:10px;overflow:auto;max-height:46vh;margin-top:12px}
+.rel-sec-t{font-size:14px;font-weight:700;margin:4px 0 0;display:flex;align-items:center;gap:8px}
+@media print{
+  body.print-rel .app, body.print-rel .toasts, body.print-rel .login{display:none!important}
+  body.print-rel #mRel{position:static;display:block!important;background:none;padding:0;backdrop-filter:none}
+  body.print-rel #mRel .box{box-shadow:none;max-height:none;max-width:none;border-radius:0}
+  body.print-rel .rel-list{max-height:none;overflow:visible}
+  body.print-rel .rel-body{overflow:visible}
+  body.print-rel .rel-kpis{grid-template-columns:repeat(6,1fr)}
+}
+/* produtos */
+.field input.mono{font-family:var(--mono);font-size:17px;letter-spacing:1px;font-weight:600;padding:12px 14px}
+.field.full{grid-column:1/-1}
+.field label .k{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--text-2);cursor:pointer}
+.chk input{width:16px;height:16px;accent-color:var(--tim)}
+.field input:disabled{background:var(--pend-50);color:var(--muted-2)}
+.tipo-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap}
+.tipo-tag svg.i{width:13px;height:13px}
+.tipo-tag.celular{background:var(--tim-50);color:var(--tim)} .tipo-tag.acessorio{background:#f0f9ff;color:#026aa2} .tipo-tag.pelicula{background:#fdf2fa;color:#c11574}
+.kpis.k4{grid-template-columns:repeat(4,1fr)}
+.cad-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px}
+/* alerta banco */
+.alerta{display:none;margin-bottom:20px;padding:16px 18px;border-radius:12px;background:var(--miss-50);border:1px solid var(--miss-100);color:var(--miss);gap:14px;align-items:flex-start}
+.alerta.on{display:flex}
+.alerta svg.i{width:22px;height:22px;flex-shrink:0;margin-top:2px}
+.alerta b{display:block;font-size:15px;margin-bottom:4px}
+.alerta p{margin:0;color:var(--text-2);font-size:13px;line-height:1.55}
+.alerta code{background:#fff;border:1px solid var(--miss-100);padding:1px 6px;border-radius:5px;font-family:var(--mono);font-size:12px;color:var(--text)}
+/* lote */
+.modos{display:flex;gap:10px;flex-wrap:wrap}
+.seg button.on.tipo{background:#fff;color:var(--tim);box-shadow:var(--shadow),0 0 0 1px #cfe0f5}
+.lotebar{display:none;align-items:center;gap:14px;margin-top:14px;padding:14px 16px;border-radius:10px;background:var(--tim-50);border:1px dashed var(--tim)}
+.lotebar .step{width:30px;height:30px;border-radius:50%;background:var(--tim);color:#fff;display:grid;place-items:center;font-weight:800;flex-shrink:0}
+.lotebar b{display:block;color:var(--tim)}
+.lotebar small{color:var(--text-2);font-size:12.5px}
+.lotebar code{font-family:var(--mono);font-weight:600}
+.lotebar .btn{margin-left:auto}
+.lotebar.s2{background:#fff8e6;border-color:var(--sold-500)} .lotebar.s2 .step{background:var(--sold-500)} .lotebar.s2 b{color:var(--sold)}
+/* login */
+.login{position:fixed;inset:0;z-index:300;display:none;background:radial-gradient(1200px 600px at 10% 0%,#0a3d7a 0%,transparent 60%),radial-gradient(900px 500px at 100% 100%,#3a0a16 0%,transparent 55%),var(--tim-900);align-items:center;justify-content:center;padding:20px}
+.login.on{display:flex}
+.lbox{background:#fff;border-radius:18px;width:100%;max-width:420px;padding:36px 34px 28px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5)}
+.lbox .lg{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+.lbox .lg img{height:44px}
+.lbox .lg div{border-left:1px solid var(--border);padding-left:14px}
+.lbox .lg b{display:block;color:var(--tim);font-size:18px;font-weight:800}
+.lbox .lg small{color:var(--muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.lbox h2{margin:0 0 4px;font-size:22px;letter-spacing:-.3px}
+.lbox>p{margin:0 0 22px;color:var(--muted)}
+.lbox .field{margin-bottom:14px}
+.lbox .btn{width:100%;justify-content:center;padding:12px;font-size:15px;margin-top:6px}
+.lbox .err{min-height:20px;color:var(--miss);font-size:13px;margin:4px 0}
+.lbox .link{background:none;border:0;color:var(--tim);font-weight:600;cursor:pointer;font-size:13px;padding:0;margin-top:14px}
+.lfoot{position:absolute;bottom:18px;color:#7d8bab;font-size:12px}
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+@keyframes rot{to{transform:rotate(360deg)}}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+/* sync e loja */
+.sync{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:8px;border:1px solid var(--border)}
+.sync i{width:8px;height:8px;border-radius:50%}
+.sync.ok{color:var(--ok);background:var(--ok-50);border-color:var(--ok-100)} .sync.ok i{background:var(--ok-500)}
+.sync.pend{color:var(--sold);background:var(--sold-50);border-color:var(--sold-100)} .sync.pend i{background:var(--sold-500);animation:pulse 1.2s infinite}
+.sync.off{color:var(--miss);background:var(--miss-50);border-color:var(--miss-100)} .sync.off i{background:var(--miss-500)}
+.lojasel{position:relative;display:flex;align-items:center}
+.lojasel svg.i{position:absolute;left:11px;width:16px;height:16px;color:var(--tim);pointer-events:none}
+.lojasel select{appearance:none;padding:9px 34px 9px 34px;border:1px solid var(--border-2);border-radius:8px;font-weight:600;font-size:13.5px;font-family:inherit;color:var(--text);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center;cursor:pointer;max-width:220px}
+.lojasel select:focus{outline:none;border-color:var(--tim);box-shadow:0 0 0 3px rgba(0,70,145,.1)}
+.loja-it{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px}
+.loja-it>svg.i{color:var(--muted)}
+.loja-it.on{border-color:var(--tim);background:var(--tim-50)} .loja-it.on>svg.i{color:var(--tim)}
+.loja-it small{display:block;color:var(--muted);font-size:12px}
+.loja-it .acts{margin-left:auto;align-items:center}
+.logout{margin-left:auto;background:rgba(255,255,255,.08);border:0;color:#c7d2e6;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;cursor:pointer}
+.logout:hover{background:var(--red);color:#fff}
+.side-foot b{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-foot span{display:block;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:1600px){.datechip{display:none}}
+.topbar>div:first-child{min-width:0}.topbar .right{flex-wrap:nowrap}
+@media (max-width:1200px){.kpis{grid-template-columns:repeat(3,1fr)}.scan-grid{grid-template-columns:1fr}}
+@media (max-width:860px){.app{grid-template-columns:1fr}aside{position:static;height:auto}nav{flex-direction:row;overflow:auto}nav .sec,.side-foot{display:none}.kpis{grid-template-columns:repeat(2,1fr)}.wk{grid-template-columns:repeat(2,1fr)}.form{grid-template-columns:1fr}.content{padding:16px}.topbar{padding:14px 16px;flex-wrap:wrap}.search input{width:100%}.search{margin-left:0;width:100%}}
+@media print{aside,.topbar .right,.toolbar,.acts,.pager,.no-print{display:none!important}.app{display:block}.view{display:block!important}.card{break-inside:avoid}}
+</style>
+</head>
+<body>
+<!-- ============ LOGIN ============ -->
+<div class="login on" id="login">
+  <form class="lbox" onsubmit="entrar(event)">
+    <div class="lg"><img src="data:image/png;base64,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" alt="TIM"><div><b>Conferência</b><small>Estoque de chips</small></div></div>
+    <h2>Quem está conferindo?</h2>
+    <p>Seu nome fica registrado nas leituras e no histórico.</p>
+    <div class="field"><label>Seu nome</label><input id="lgNome" autocomplete="name" placeholder="Ex.: Wevellen" required></div>
+    <div class="err" id="lgErr"></div>
+    <button class="btn btn-primary" id="lgBtn" type="submit">Começar</button>
+  </form>
+  <div class="lfoot">TIM Conferência</div>
+</div>
+
+<div class="app">
+  <aside>
+    <div class="brand">
+      <div class="logo">
+        <img src="data:image/png;base64,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" alt="TIM">
+        <div><b>Conferência</b><small>Estoque da loja</small></div>
+      </div>
+    </div>
+    <nav>
+      <div class="sec">Chips TIM</div>
+      <a data-v="painel" class="on"><svg class="i"><use href="#i-grid"/></svg>Painel</a>
+      <a data-v="conferencia"><svg class="i"><use href="#i-scan"/></svg>Conferência<span class="badge" id="nPend">0</span></a>
+      <a data-v="chips"><svg class="i"><use href="#i-sim"/></svg>Chips<span class="badge" id="nTotal">0</span></a>
+      <a data-v="historico"><svg class="i"><use href="#i-clock"/></svg>Histórico</a>
+      <div class="sec">Aparelhos e acessórios</div>
+      <a data-v="pcadastro"><svg class="i"><use href="#i-plus"/></svg>Cadastro</a>
+      <a data-v="pconf"><svg class="i"><use href="#i-scan"/></svg>Conferência</a>
+      <a data-v="produtos"><svg class="i"><use href="#i-phone"/></svg>Produtos<span class="badge" id="nProd">0</span></a>
+      <div class="sec">Sistema</div>
+      <a data-v="config"><svg class="i"><use href="#i-gear"/></svg>Configurações</a>
+    </nav>
+    <div class="side-foot">
+      <div class="who"><div class="avatar" id="avatar">TC</div><div><b id="sOper">Operador</b><span id="sLoja">Loja não definida</span></div><button class="logout" title="Trocar operador" onclick="sair()"><svg class="i" style="width:16px;height:16px"><use href="#i-logout"/></svg></button></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div><h1 id="tTitle">Painel</h1><div class="crumb" id="tSub">Visão geral do estoque de chips TIM</div></div>
+      <div class="right">
+        <div class="sync ok" id="sync"><i></i><span>Sincronizado</span></div>
+        <div class="lojasel"><svg class="i"><use href="#i-store"/></svg><select id="selLoja" title="Loja"></select></div>
+        <div class="datechip"><svg class="i" style="width:15px;height:15px"><use href="#i-cal"/></svg><span id="hoje"></span></div>
+        <button class="btn btn-outline chipbtn" onclick="abrirColar()"><svg class="i"><use href="#i-clip"/></svg>Colar planilha</button>
+        <button class="btn btn-primary chipbtn" onclick="if(!precisaLoja())$('#arquivo').click()"><svg class="i"><use href="#i-upload"/></svg>Importar Excel</button>
+        <input type="file" id="arquivo" accept=".xlsx,.xls,.csv" hidden>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="alerta" id="alerta"></div>
+      <!-- ================= PAINEL ================= -->
+      <section class="view on" id="v-painel">
+        <div class="kpis">
+          <div class="card kpi t"><div class="top"><span class="lbl">Total geral</span><span class="ic"><svg class="i"><use href="#i-sim"/></svg></span></div><div class="val" id="kTotal">0</div><div class="foot">chips na planilha</div></div>
+          <div class="card kpi ok"><div class="top"><span class="lbl">Em estoque</span><span class="ic"><svg class="i"><use href="#i-check"/></svg></span></div><div class="val" id="kEstoque">0</div><div class="foot" id="kEstoqueP">0% do total</div></div>
+          <div class="card kpi sold"><div class="top"><span class="lbl">Vendidos</span><span class="ic"><svg class="i"><use href="#i-cart"/></svg></span></div><div class="val" id="kVendido">0</div><div class="foot" id="kVendidoP">0% do total</div></div>
+          <div class="card kpi miss"><div class="top"><span class="lbl">Não encontrados</span><span class="ic"><svg class="i"><use href="#i-x"/></svg></span></div><div class="val" id="kFalta">0</div><div class="foot" id="kFaltaP">0% do total</div></div>
+          <div class="card kpi pend"><div class="top"><span class="lbl">A conferir</span><span class="ic"><svg class="i"><use href="#i-clock"/></svg></span></div><div class="val" id="kPend">0</div><div class="foot" id="kExtra">0 fora da planilha</div></div>
+        </div>
+
+        <div class="row mb" style="grid-template-columns:1.35fr 1fr">
+          <div class="card">
+            <div class="card-h"><div><h3>Progresso da conferência atual</h3><p id="progSub">Nenhuma planilha importada</p></div>
+              <div class="r"><button class="btn btn-primary btn-sm" onclick="ir('conferencia')"><svg class="i"><use href="#i-scan"/></svg>Iniciar leitura</button></div></div>
+            <div class="card-b">
+              <div class="prog-meta"><div><div class="pct" id="progPct">0%</div><small style="color:var(--muted)">dos chips já verificados</small></div><small style="color:var(--muted)" id="progTxt">0 de 0</small></div>
+              <div class="prog" id="progBar"></div>
+              <div class="legend">
+                <span><i class="dot" style="background:var(--ok-500)"></i>Em estoque</span>
+                <span><i class="dot" style="background:var(--sold-500)"></i>Vendido</span>
+                <span><i class="dot" style="background:var(--miss-500)"></i>Não encontrado</span>
+                <span><i class="dot" style="background:var(--pend-500)"></i>A conferir</span>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><div><h3>Distribuição</h3><p>Situação de todos os chips</p></div></div>
+            <div class="card-b"><div class="donut-wrap"><div class="donut-c" id="donut"></div><div class="dl" id="donutL"></div></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div><h3>Total da semana</h3><p id="wkRange"></p></div>
+            <div class="r legend" style="margin:0"><span><i class="dot" style="background:var(--ok-500)"></i>Conferidos</span><span><i class="dot" style="background:var(--sold-500)"></i>Vendidos</span></div></div>
+          <div class="card-b">
+            <div class="wk" id="wk"></div>
+            <div class="chart" id="chart"></div>
+            <div class="chart-x" id="chartX"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= CONFERÊNCIA ================= -->
+      <section class="view" id="v-conferencia">
+        <div class="scan-grid">
+          <div class="card">
+            <div class="card-h"><div><h3>Leitura de ICCID</h3><p>Use o leitor de código de barras ou digite e pressione Enter</p></div></div>
+            <div class="card-b">
+              <div class="modos"><div class="seg">
+                <button id="mConf" class="conf on" onclick="setModo('conf')"><svg class="i"><use href="#i-check"/></svg>Conferir estoque</button>
+                <button id="mVenda" class="venda" onclick="setModo('venda')"><svg class="i"><use href="#i-cart"/></svg>Registrar venda</button>
+              </div>
+              <div class="seg">
+                <button id="tUni" class="tipo on" onclick="setTipo('uni')"><svg class="i"><use href="#i-barcode"/></svg>Unitário</button>
+                <button id="tLote" class="tipo" onclick="setTipo('lote')"><svg class="i"><use href="#i-box"/></svg>Lote (1º e último ICCID)</button>
+              </div></div>
+              <div class="scanbox" id="scanbox">
+                <svg class="i"><use href="#i-barcode"/></svg>
+                <input id="bip" placeholder="Aguardando leitura…" autocomplete="off" spellcheck="false">
+                <span class="live"><i></i>Pronto</span>
+              </div>
+              <div class="lotebar" id="loteBar"></div>
+              <div class="hint"><svg class="i"><use href="#i-info"/></svg>Dica: colar várias linhas do Excel neste campo abre a importação automaticamente.</div>
+              <div class="result" id="result">
+                <div class="ri"><svg class="i"><use href="#i-barcode"/></svg></div>
+                <div><h4 style="color:var(--text-2)">Aguardando leitura</h4><p>O resultado de cada bip aparece aqui.</p></div>
+              </div>
+              <div class="mini">
+                <div><small><i class="dot" style="background:var(--ok-500)"></i>Em estoque</small><b id="cEst">0</b></div>
+                <div><small><i class="dot" style="background:var(--sold-500)"></i>Vendidos</small><b id="cVen">0</b></div>
+                <div><small><i class="dot" style="background:var(--pend-500)"></i>A conferir</small><b id="cPen">0</b></div>
+                <div><small><i class="dot" style="background:var(--extra)"></i>Fora da lista</small><b id="cExt">0</b></div>
+              </div>
+              <div style="margin-top:14px"><div class="prog" id="progBar2"></div></div>
+              <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+                <button class="btn btn-danger" onclick="finalizar()"><svg class="i"><use href="#i-flag"/></svg>Finalizar conferência</button>
+                <button class="btn btn-outline" onclick="novaConferencia()"><svg class="i"><use href="#i-refresh"/></svg>Nova conferência</button>
+                <button class="btn btn-outline" onclick="abrirRelatorio(null)" style="margin-left:auto"><svg class="i"><use href="#i-file"/></svg>Relatório</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><div><h3>Últimas leituras</h3><p>Sessão atual</p></div><div class="r"><span class="pill pendente" id="nLeit">0 leituras</span></div></div>
+            <ul class="feed" id="feed"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= CHIPS ================= -->
+      <section class="view" id="v-chips">
+        <div class="card">
+          <div class="toolbar">
+            <div class="tabs" id="tabs"></div>
+            <div class="search"><svg class="i"><use href="#i-search"/></svg><input id="busca" placeholder="Buscar ICCID, número, loja…"></div>
+            <button class="btn btn-outline" onclick="exportar()"><svg class="i"><use href="#i-download"/></svg>Exportar</button>
+            <button class="btn btn-outline" onclick="window.print()"><svg class="i"><use href="#i-print"/></svg>Imprimir</button>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th style="width:56px">#</th><th>ICCID</th><th>Informações</th><th>Status</th><th>Atualizado em</th><th style="text-align:right">Ações</th></tr></thead>
+              <tbody id="tbody"></tbody>
+            </table>
+            <div id="vazio" class="empty"></div>
+          </div>
+          <div class="pager" id="pager"></div>
+        </div>
+      </section>
+
+      <!-- ================= HISTÓRICO ================= -->
+      <section class="view" id="v-historico">
+        <div class="card">
+          <div class="card-h"><div><h3>Conferências finalizadas</h3><p>Registro de cada conferência concluída</p></div></div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Loja</th><th>Operador</th><th>Total</th><th>Em estoque</th><th>Vendidos</th><th>Não encontrados</th><th>Fora da lista</th><th>Acuracidade</th><th style="text-align:right">Relatório</th></tr></thead>
+              <tbody id="histBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PRODUTOS: CADASTRO ================= -->
+      <section class="view" id="v-pcadastro">
+        <div class="scan-grid">
+          <div class="card">
+            <div class="card-h"><div><h3>Cadastrar entrada</h3><p>Bipe os códigos na ordem — o cursor avança sozinho a cada leitura</p></div>
+              <div class="r"><button class="btn btn-outline btn-sm" onclick="abrirColar('', 'produtos')"><svg class="i"><use href="#i-clip"/></svg>Colar planilha</button><button class="btn btn-outline btn-sm" onclick="if(!precisaLoja())$('#arquivoProd').click()"><svg class="i"><use href="#i-upload"/></svg>Importar Excel</button></div></div>
+            <div class="card-b">
+              <div class="seg">
+                <button id="cCel" class="tipo on" onclick="setCadTipo('celular')"><svg class="i"><use href="#i-phone"/></svg>Celular</button>
+                <button id="cAce" class="tipo" onclick="setCadTipo('item')"><svg class="i"><use href="#i-tag"/></svg>Acessório / Película</button>
+              </div>
+              <div id="fCel" style="margin-top:18px">
+                <div class="form">
+                  <div class="field"><label>1. Código de venda</label><input id="celCod" class="mono" placeholder="Bipe ou digite" autocomplete="off"></div>
+                  <div class="field"><label>2. Descrição / modelo <span class="k">preenche sozinho se o código já existir</span></label><input id="celDesc" placeholder="Ex.: Samsung Galaxy A15 128GB" autocomplete="off"></div>
+                  <div class="field"><label>3. IMEI 1</label><input id="celI1" class="mono" placeholder="Bipe o IMEI 1" autocomplete="off" inputmode="numeric"></div>
+                  <div class="field"><label>4. IMEI 2</label><input id="celI2" class="mono" placeholder="Bipe o IMEI 2" autocomplete="off" inputmode="numeric"></div>
+                </div>
+                <div class="cad-acts">
+                  <label class="chk"><input type="checkbox" id="celManter" checked>Manter código e descrição para o próximo aparelho</label>
+                  <label class="chk"><input type="checkbox" id="celSemI2">Aparelho sem IMEI 2</label>
+                </div>
+                <div class="cad-acts">
+                  <button class="btn btn-primary" onclick="salvarCelular()"><svg class="i"><use href="#i-check"/></svg>Salvar aparelho</button>
+                  <button class="btn btn-outline" onclick="limparCelular()">Limpar</button>
+                </div>
+              </div>
+              <div id="fAce" style="margin-top:18px;display:none">
+                <div class="form">
+                  <div class="field full"><label>1. Código de barras da caixa</label><input id="aceEan" class="mono" placeholder="Bipe o código de barras" autocomplete="off"><div class="help">Produto já cadastrado: cada bipe soma a quantidade ao estoque na hora.</div></div>
+                  <div class="field"><label>Tipo</label><select id="aceTipo"><option value="acessorio">Acessório</option><option value="pelicula">Película</option></select></div>
+                  <div class="field"><label>Quantidade por bipe</label><input id="aceQtd" type="number" min="1" value="1"></div>
+                  <div class="field"><label>2. Código de venda</label><input id="aceCod" class="mono" placeholder="Bipe ou digite" autocomplete="off"></div>
+                  <div class="field"><label>3. Descrição</label><input id="aceDesc" placeholder="Ex.: Película 3D iPhone 13" autocomplete="off"></div>
+                </div>
+                <div class="cad-acts"><button class="btn btn-primary" onclick="salvarItem()"><svg class="i"><use href="#i-check"/></svg>Salvar produto</button></div>
+              </div>
+              <div class="result" id="cadResult"><div class="ri"><svg class="i"><use href="#i-barcode"/></svg></div><div><h4 style="color:var(--text-2)">Pronto para cadastrar</h4><p>Os IMEIs são validados (15 números + dígito verificador) e duplicados são bloqueados.</p></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><div><h3>Últimos cadastros</h3><p>Entradas desta semana</p></div><div class="r"><span class="pill pendente" id="cadN">0</span></div></div>
+            <ul class="feed" id="cadFeed"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PRODUTOS: CONFERÊNCIA ================= -->
+      <section class="view" id="v-pconf">
+        <div class="scan-grid">
+          <div class="card">
+            <div class="card-h"><div><h3>Conferência de aparelhos e acessórios</h3><p>Bipe o IMEI 1 ou IMEI 2 do celular, ou o código de barras do acessório/película</p></div></div>
+            <div class="card-b">
+              <div class="seg">
+                <button id="pmConf" class="conf on" onclick="setPModo('conf')"><svg class="i"><use href="#i-check"/></svg>Conferir estoque</button>
+                <button id="pmVenda" class="venda" onclick="setPModo('venda')"><svg class="i"><use href="#i-cart"/></svg>Registrar venda</button>
+              </div>
+              <div class="scanbox" id="pscanbox">
+                <svg class="i"><use href="#i-barcode"/></svg>
+                <input id="pbip" placeholder="Bipe IMEI ou código de barras…" autocomplete="off" spellcheck="false">
+                <span class="live"><i></i>Pronto</span>
+              </div>
+              <div class="result" id="pResult"><div class="ri"><svg class="i"><use href="#i-barcode"/></svg></div><div><h4 style="color:var(--text-2)">Aguardando leitura</h4><p>Celular: qualquer um dos dois IMEIs serve. Acessório/película: cada bipe conta 1 unidade.</p></div></div>
+              <div class="mini">
+                <div><small><i class="dot" style="background:var(--ok-500)"></i>Aparelhos conferidos</small><b id="pcCel">0/0</b></div>
+                <div><small><i class="dot" style="background:var(--pend-500)"></i>Aparelhos a conferir</small><b id="pcPend">0</b></div>
+                <div><small><i class="dot" style="background:var(--ok-500)"></i>Unidades conferidas</small><b id="pcUn">0/0</b></div>
+                <div><small><i class="dot" style="background:var(--miss-500)"></i>Não encontrados</small><b id="pcFalta">0</b></div>
+              </div>
+              <div style="margin-top:14px"><div class="prog" id="pProg"></div><small style="color:var(--muted);display:block;margin-top:6px" id="pProgTxt"></small></div>
+              <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+                <button class="btn btn-danger" onclick="finalizarProdutos()"><svg class="i"><use href="#i-flag"/></svg>Finalizar conferência</button>
+                <button class="btn btn-outline" onclick="novaConfProdutos()"><svg class="i"><use href="#i-refresh"/></svg>Nova conferência</button>
+                <button class="btn btn-outline" onclick="abrirRelProd(null)" style="margin-left:auto"><svg class="i"><use href="#i-file"/></svg>Relatório</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><div><h3>Últimas leituras</h3><p>Conferência atual</p></div><div class="r"><span class="pill pendente" id="pFeedN">0</span></div></div>
+            <ul class="feed" id="pFeed"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PRODUTOS: LISTA ================= -->
+      <section class="view" id="v-produtos">
+        <div class="kpis k4">
+          <div class="card kpi t"><div class="top"><span class="lbl">Aparelhos em estoque</span><span class="ic"><svg class="i"><use href="#i-phone"/></svg></span></div><div class="val" id="pkCel">0</div><div class="foot" id="pkCelV"></div></div>
+          <div class="card kpi ok"><div class="top"><span class="lbl">Acessórios (unidades)</span><span class="ic"><svg class="i"><use href="#i-tag"/></svg></span></div><div class="val" id="pkAce">0</div><div class="foot" id="pkItens"></div></div>
+          <div class="card kpi sold"><div class="top"><span class="lbl">Películas (unidades)</span><span class="ic"><svg class="i"><use href="#i-tag"/></svg></span></div><div class="val" id="pkPel">0</div><div class="foot">caixas lacradas</div></div>
+          <div class="card kpi pend"><div class="top"><span class="lbl">Semana · entradas / vendas</span><span class="ic"><svg class="i"><use href="#i-cal"/></svg></span></div><div class="val"><span id="pkSemE" style="color:var(--tim)">0</span> <span style="color:var(--muted-2);font-weight:400">/</span> <span id="pkSemV" style="color:var(--sold)">0</span></div><div class="foot" id="pkSemSub"></div></div>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <div class="tabs" id="ptabs"></div>
+            <div class="search"><svg class="i"><use href="#i-search"/></svg><input id="pbusca" placeholder="Buscar IMEI, código, descrição…"></div>
+            <button class="btn btn-outline" onclick="abrirColar('', 'produtos')"><svg class="i"><use href="#i-clip"/></svg>Colar planilha</button>
+            <button class="btn btn-outline" onclick="if(!precisaLoja())$('#arquivoProd').click()"><svg class="i"><use href="#i-upload"/></svg>Importar Excel</button>
+            <button class="btn btn-outline" onclick="exportarProdutos()"><svg class="i"><use href="#i-download"/></svg>Exportar</button>
+            <button class="btn btn-primary" onclick="ir('pcadastro')"><svg class="i"><use href="#i-plus"/></svg>Cadastrar</button>
+            <input type="file" id="arquivoProd" accept=".xlsx,.xls,.csv" hidden>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Tipo</th><th>Descrição</th><th>Cód. venda</th><th>IMEI 1 / 2 · Cód. barras</th><th style="text-align:center">Qtd</th><th>Situação</th><th>Atualizado</th><th style="text-align:right">Ações</th></tr></thead>
+              <tbody id="ptbody"></tbody>
+            </table>
+            <div id="pvazio" class="empty"></div>
+          </div>
+          <div class="pager" id="ppager"></div>
+        </div>
+        <div class="card" style="margin-top:20px">
+          <div class="card-h"><div><h3>Conferências de produtos finalizadas</h3><p>Clique em Ver para abrir o relatório com nomes, IMEIs e códigos</p></div></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Data</th><th>Loja</th><th>Operador</th><th>Celulares</th><th>Unidades (acess./pel.)</th><th>Não encontrados</th><th>Acuracidade</th><th style="text-align:right">Relatório</th></tr></thead>
+            <tbody id="phistBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- ================= CONFIG ================= -->
+      <section class="view" id="v-config">
+        <div class="row" style="grid-template-columns:1fr 1fr;align-items:start;max-width:1200px">
+          <div class="card">
+            <div class="card-h"><div><h3>Lojas</h3><p>Cada loja tem sua própria lista de chips e histórico</p></div></div>
+            <div class="card-b">
+              <div id="listaLojas"></div>
+              <div style="display:flex;gap:8px;margin-top:14px">
+                <div class="field" style="flex:1"><input id="novaLojaNome" placeholder="Nome da nova loja (ex.: Loja Centro)" onkeydown="if(event.key==='Enter')novaLoja()"></div>
+                <button class="btn btn-primary" onclick="novaLoja()"><svg class="i"><use href="#i-plus"/></svg>Adicionar</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card mb">
+              <div class="card-h"><div><h3>Operador</h3><p>Nome registrado nas leituras e no histórico deste aparelho</p></div></div>
+              <div class="card-b">
+                <div class="field"><label>Nome do operador</label><input id="cfOper" placeholder="Seu nome"><div class="help">Também pode trocar pelo botão ao lado do seu nome, no rodapé do menu.</div></div>
+                <div style="margin-top:16px"><label class="switch"><input type="checkbox" id="cfSom"><i></i>Sons de confirmação ao bipar</label></div>
+                <div style="margin-top:20px"><button class="btn btn-primary" onclick="salvarConfig()"><svg class="i"><use href="#i-check"/></svg>Salvar</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h"><div><h3>Dados da loja selecionada</h3><p>Salvos na nuvem (Firebase) e sincronizados entre aparelhos</p></div></div>
+              <div class="card-b" style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-outline" onclick="backup()"><svg class="i"><use href="#i-download"/></svg>Baixar backup</button>
+                <button class="btn btn-danger" onclick="limparTudo()" style="margin-left:auto"><svg class="i"><use href="#i-trash"/></svg>Apagar dados da loja</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAIS ============ -->
+<div class="modal" id="mColar">
+  <div class="box lg">
+    <div class="mh"><div class="mi"><svg class="i"><use href="#i-clip"/></svg></div><div><h3>Colar planilha do Excel</h3><p id="colarTxt">No Excel, selecione as linhas (pode incluir o cabeçalho), copie com <b>Ctrl+C</b> e cole abaixo com <b>Ctrl+V</b>. Também aceita uma lista simples de ICCIDs, um por linha.</p></div></div>
+    <div class="mb"><div class="field"><textarea id="txtColar" placeholder="ICCID&#9;Loja&#9;Status&#10;89550310000000000001&#9;Centro&#9;Disponível&#10;…"></textarea><div class="help" id="colarInfo">Nenhum dado colado.</div></div></div>
+    <div class="mf"><button class="btn btn-outline" onclick="fechar('mColar')">Cancelar</button><button class="btn btn-primary" onclick="processarColado()"><svg class="i"><use href="#i-arrow"/></svg>Continuar</button></div>
+  </div>
+</div>
+
+<div class="modal" id="mCols">
+  <div class="box lg">
+    <div class="mh"><div class="mi"><svg class="i"><use href="#i-table"/></svg></div><div><h3>Configurar importação</h3><p id="modalInfo"></p></div></div>
+    <div class="mb">
+      <div class="form">
+        <div class="field"><label>Coluna do ICCID</label><select id="selIccid"></select></div>
+        <div class="field"><label>Coluna de status (opcional)</label><select id="selStatus"></select><div class="help">Linhas com "vendido", "ativado" ou "baixado" entram em amarelo.</div></div>
+        <div class="field" style="grid-column:1/-1"><label>Modo de importação</label><select id="selModo"><option value="substituir">Substituir a lista atual por esta planilha</option><option value="somar">Adicionar à lista atual (ignora ICCIDs repetidos)</option></select></div>
+      </div>
+      <div class="preview" id="preview"></div>
+    </div>
+    <div class="mf"><button class="btn btn-outline" onclick="fechar('mCols')">Cancelar</button><button class="btn btn-primary" onclick="confirmarImport()"><svg class="i"><use href="#i-check"/></svg>Importar chips</button></div>
+  </div>
+</div>
+
+<div class="modal" id="mConfirm">
+  <div class="box">
+    <div class="mh"><div class="mi" id="cfIc"><svg class="i"><use href="#i-info"/></svg></div><div style="flex:1"><h3 id="cfT"></h3><p id="cfM"></p><div class="field" style="margin-top:12px"><input id="cfInput" style="display:none"></div></div></div>
+    <div class="mf" style="margin-top:20px"><button class="btn btn-outline" onclick="resolverConfirm(false)">Cancelar</button><button class="btn btn-primary" id="cfOk" onclick="resolverConfirm(true)">Confirmar</button></div>
+  </div>
+</div>
+
+<div class="modal" id="mProdImp">
+  <div class="box lg">
+    <div class="mh"><div class="mi"><svg class="i"><use href="#i-phone"/></svg></div><div><h3>Importar aparelhos e acessórios</h3><p id="pimpInfo"></p></div></div>
+    <div class="mb">
+      <div class="form">
+        <div class="field"><label>Nome / descrição</label><select id="pmDesc"></select></div>
+        <div class="field"><label>Código de venda</label><select id="pmCod"></select></div>
+        <div class="field"><label>IMEI 1 <span class="k">celulares</span></label><select id="pmI1"></select></div>
+        <div class="field"><label>IMEI 2 <span class="k">celulares</span></label><select id="pmI2"></select></div>
+        <div class="field"><label>Código de barras <span class="k">acessórios e películas</span></label><select id="pmEan"></select></div>
+        <div class="field"><label>Quantidade <span class="k">acessórios e películas</span></label><select id="pmQtd"></select></div>
+        <div class="field"><label>Coluna de tipo/categoria <span class="k">opcional</span></label><select id="pmTipo"></select></div>
+        <div class="field"><label>Sem coluna de tipo, os itens são</label><select id="pmTipoPad"><option value="acessorio">Acessórios</option><option value="pelicula">Películas</option></select></div>
+      </div>
+      <div class="help" style="margin-top:12px">Linhas com IMEI viram <b>celulares</b> (IMEI é validado; IMEI já cadastrado é ignorado). Linhas sem IMEI e com código de barras viram <b>acessório/película</b>; se o código já existir, a quantidade é somada ao estoque.</div>
+      <div class="preview" id="ppreview"></div>
+    </div>
+    <div class="mf"><button class="btn btn-outline" onclick="fechar('mProdImp')">Cancelar</button><button class="btn btn-primary" onclick="confirmarImportProd()"><svg class="i"><use href="#i-check"/></svg>Importar</button></div>
+  </div>
+</div>
+
+<div class="modal" id="mRel"><div class="box xl" id="relBox"></div></div>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- ============ ÍCONES ============ -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></symbol>
+  <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M3 5v14M7 5v14M10 5v14M14 5v14M17 5v14M21 5v14"/></symbol>
+  <symbol id="i-sim" viewBox="0 0 24 24"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><rect x="8" y="11" width="8" height="7" rx="1"/><path d="M12 11v7M8 14.5h8"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M3 9l1.5-5h15L21 9M3 9v11h18V9M3 9h18M9 20v-6h6v6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
+
+<script>
+/* ================= FIREBASE ================= */
+if (typeof firebase === 'undefined'){ document.addEventListener('DOMContentLoaded', () => { document.getElementById('lgErr').textContent = 'Não foi possível carregar o sistema. Verifique a internet e recarregue a página.'; }); throw new Error('Firebase não carregou'); }
+const firebaseConfig = {
+  apiKey: "AIzaSyC8YhebonfjmHvCagkwYaFRAItnnCCuUp8",
+  authDomain: "conferencia-tim.firebaseapp.com",
+  projectId: "conferencia-tim",
+  storageBucket: "conferencia-tim.firebasestorage.app",
+  messagingSenderId: "93819847352",
+  appId: "1:93819847352:web:8cd0bc523cc2689bf36a4d"
+};
+firebase.initializeApp(firebaseConfig);
+const fs = firebase.firestore();
+try { fs.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch (e) {}
+
+/* ================= ESTADO ================= */
+const $ = s => document.querySelector(s);
+const ic = n => `<svg class="i"><use href="#i-${n}"/></svg>`;
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+let lojas = [], lojaId = lsGet('timconf_loja') || '';
+const chips = new Map();
+const produtos = new Map(); let phist = []; let pFiltro = 'todos', pPagina = 1; let idxImei = new Map(), idxEan = new Map(), idxCod = new Map();
+let historico = [], eventos = [], unsubs = [], unsubLojas = null, syncPendente = false;
+let CFG = Object.assign({ operador: '', som: true }, (() => { try { return JSON.parse(lsGet('timconf_cfg') || '{}'); } catch (e) { return {}; } })());
+let tipoLeitura = 'uni', loteInicio = null, loteTimer = null, loteExpira = 0, ultimoLote = null;
+let modo = 'conf', filtro = 'todos', pagina = 1, pendenteImport = null, viewAtual = 'painel';
+const POR_PAG = 50;
+const NOMES = { estoque:'Em estoque', vendido:'Vendido', faltando:'Não encontrado', pendente:'A conferir', extra:'Fora da planilha' };
+const TITULOS = { pcadastro:['Cadastro de produtos','Entrada de celulares (IMEI 1 e 2), acessórios e películas'], pconf:['Conferência de produtos','Conferência e venda de aparelhos e acessórios por bip'], produtos:['Produtos','Aparelhos, acessórios e películas cadastrados'], painel:['Painel','Visão geral do estoque de chips TIM'], conferencia:['Conferência','Leitura dos chips por código de barras (ICCID)'], chips:['Chips','Lista completa com situação de cada ICCID'], historico:['Histórico','Conferências finalizadas'], config:['Configurações','Lojas, operador e preferências'] };
+
+const operador = () => CFG.operador || 'Operador';
+const lojaNome = () => (lojas.find(l => l.id === lojaId) || {}).nome || '';
+const L = () => fs.collection('lojas').doc(lojaId);
+const chipRef = id => L().collection('chips').doc(id);
+
+/* ================= UTILITÁRIOS ================= */
+const norm = v => String(v ?? '').replace(/[^0-9]/g, '');
+const agora = () => new Date().toISOString();
+const fmt = iso => iso ? new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+const hora = iso => new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const nf = n => (n || 0).toLocaleString('pt-BR');
+const pct = (a,b) => b ? Math.round(a/b*1000)/10 : 0;
+function inicioSemana(){ const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d; }
+const naSemana = iso => iso && new Date(iso) >= inicioSemana();
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const listaChips = () => [...chips.values()];
+
+function acharChip(cod){
+  if (chips.has(cod)) return chips.get(cod);
+  if (cod.length >= 18){
+    const m = listaChips().filter(x => x.iccid.length>=18 && Math.abs(x.iccid.length-cod.length)===1 && (x.iccid.startsWith(cod)||cod.startsWith(x.iccid)));
+    if (m.length === 1) return m[0];
+  }
+  return null;
+}
+
+/* ================= GRAVAÇÃO ================= */
+function mostrarAlerta(html){ const a = $('#alerta'); a.innerHTML = ic('alert') + '<div>' + html + '</div>'; a.classList.add('on'); }
+function esconderAlerta(){ $('#alerta').classList.remove('on'); }
+let _ultimoAlerta = 0;
+function erroFs(e){
+  console.error(e);
+  if (e && e.code === 'permission-denied'){
+    mostrarAlerta(`<b>O Firebase está bloqueando a gravação — nada está sendo salvo</b><p>No console do Firebase (projeto <code>conferencia-tim</code>), abra <b style="display:inline;font-size:13px;color:inherit">Firestore Database → Regras</b>, troque a regra por <code>allow read, write: if true;</code> e clique em <b style="display:inline;font-size:13px;color:inherit">Publicar</b>. Depois recarregue esta página (Ctrl+F5) e importe de novo.</p>`);
+    if (Date.now() - _ultimoAlerta < 4000) return; _ultimoAlerta = Date.now();
+  }
+  toast(e && e.code === 'permission-denied' ? 'Sem permissão no banco de dados. Verifique as regras do Firestore.' : 'Erro no banco de dados: ' + (e && e.message || e), 'err');
+}
+function evOp(tipo, dados = {}, refs){
+  const ref = L().collection('eventos').doc(); if (refs) refs.push(ref);
+  const d = Object.assign({ tipo, em: agora(), por: operador() }, dados);
+  return b => b.set(ref, d);
+}
+/* grava em lotes de até 450 operações; não bloqueia (funciona offline) */
+function commit(ops){
+  const ps = [];
+  for (let i = 0; i < ops.length; i += 450){
+    const b = fs.batch(); ops.slice(i, i+450).forEach(f => f(b)); ps.push(b.commit());
+  }
+  const p = Promise.all(ps); p.then(esconderAlerta, erroFs); return p;
+}
+function opStatus(c, st){
+  c.status = st; c.atualizadoEm = agora(); chips.set(c.iccid, c);
+  const d = { status: st, atualizadoEm: c.atualizadoEm, por: operador() };
+  return b => b.update(chipRef(c.iccid), d);
+}
+
+/* ================= ACESSO (só o nome do operador, sem login) ================= */
+let conectado = false;
+function iniciarConexao(){
+  if (conectado) return; conectado = true;
+  ouvirLojas(); render();
+}
+function entrar(e){
+  e.preventDefault();
+  const nome = $('#lgNome').value.trim();
+  if (!nome){ $('#lgErr').textContent = 'Digite seu nome.'; return; }
+  CFG.operador = nome; lsSet('timconf_cfg', JSON.stringify(CFG));
+  $('#login').classList.remove('on'); $('#lgErr').textContent = '';
+  render(); toast('Olá, ' + esc(nome) + '!', 'ok'); focarBip();
+}
+function sair(){
+  $('#lgNome').value = CFG.operador || '';
+  $('#login').classList.add('on'); setTimeout(() => $('#lgNome').select(), 60);
+}
+if (CFG.operador) $('#login').classList.remove('on');
+else setTimeout(() => $('#lgNome').focus(), 60);
+iniciarConexao();
+
+/* ================= LOJAS / LISTENERS ================= */
+function ouvirLojas(){
+  unsubLojas && unsubLojas();
+  unsubLojas = fs.collection('lojas').onSnapshot(s => {
+    lojas = s.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+    if (!lojas.length){ trocarLoja(''); ir('config'); return; }
+    if (!lojas.some(l => l.id === lojaId)) trocarLoja(lojas[0].id);
+    else if (!unsubs.length) trocarLoja(lojaId);
+    else { renderLojas(); render(); }
+  }, erroFs);
+}
+function trocarLoja(id){
+  unsubs.forEach(f => f()); unsubs = [];
+  chips.clear(); historico = []; eventos = []; produtos.clear(); phist = []; reindexar();
+  lojaId = id; lsSet('timconf_loja', id); pagina = 1;
+  if (loteInicio){ limparPendente(); renderLoteBar(); }
+  renderLojas(); render();
+  if (!id) return;
+  unsubs.push(L().collection('chips').onSnapshot({ includeMetadataChanges: true }, s => {
+    s.docChanges().forEach(ch => { if (ch.type === 'removed') chips.delete(ch.doc.id); else chips.set(ch.doc.id, ch.doc.data()); });
+    syncPendente = s.metadata.hasPendingWrites; renderSync(); agendar();
+  }, erroFs));
+  unsubs.push(L().collection('produtos').onSnapshot(s => {
+    s.docChanges().forEach(ch => { if (ch.type === 'removed') produtos.delete(ch.doc.id); else produtos.set(ch.doc.id, ch.doc.data()); });
+    reindexar(); agendar();
+  }, erroFs));
+  unsubs.push(L().collection('phistorico').orderBy('em','desc').limit(100).onSnapshot(s => {
+    phist = s.docs.map(d => Object.assign({ id: d.id }, d.data())); agendar();
+  }, erroFs));
+  unsubs.push(L().collection('historico').orderBy('em','desc').limit(200).onSnapshot(s => {
+    historico = s.docs.map(d => Object.assign({ id: d.id }, d.data())); agendar();
+  }, erroFs));
+  unsubs.push(L().collection('eventos').where('em','>=', inicioSemana().toISOString()).onSnapshot(s => {
+    eventos = s.docs.map(d => Object.assign({ id: d.id }, d.data())); agendar();
+  }, erroFs));
+}
+$('#selLoja').addEventListener('change', e => { trocarLoja(e.target.value); toast('Loja: ' + lojaNome(), 'info'); });
+async function novaLoja(){
+  const nome = $('#novaLojaNome').value.trim();
+  if (!nome){ toast('Digite o nome da loja.', 'err'); return; }
+  if (lojas.some(l => (l.nome||'').toLowerCase() === nome.toLowerCase())){ toast('Já existe uma loja com esse nome.', 'err'); return; }
+  const ref = fs.collection('lojas').doc();
+  ref.set({ nome, criadoEm: agora(), criadoPor: operador() }).catch(erroFs);
+  $('#novaLojaNome').value = '';
+  lojas.push({ id: ref.id, nome }); trocarLoja(ref.id);
+  toast('Loja "' + esc(nome) + '" criada.', 'ok');
+}
+async function renomearLoja(id){
+  const l = lojas.find(x => x.id === id); if (!l) return;
+  const nome = await pedirTexto('Renomear loja', 'Novo nome da loja', l.nome);
+  if (!nome || nome === l.nome) return;
+  fs.collection('lojas').doc(id).update({ nome }).catch(erroFs); toast('Loja renomeada.', 'ok');
+}
+function renderLojas(){
+  $('#selLoja').innerHTML = lojas.length ? lojas.map(l => `<option value="${l.id}" ${l.id===lojaId?'selected':''}>${esc(l.nome)}</option>`).join('') : '<option value="">Nenhuma loja</option>';
+  $('#listaLojas').innerHTML = lojas.length ? lojas.map(l => `<div class="loja-it ${l.id===lojaId?'on':''}">
+      ${ic('store')}<div><b>${esc(l.nome)}</b><small>${l.id===lojaId?'Loja selecionada':'Criada em '+fmt(l.criadoEm)}</small></div>
+      <div class="acts">${l.id!==lojaId?`<button class="btn btn-outline btn-sm" onclick="trocarLoja('${l.id}');toast('Loja: '+lojaNome(),'info')">Selecionar</button>`:''}
+      <button class="ib" title="Renomear" onclick="renomearLoja('${l.id}')">${ic('edit')}</button></div></div>`).join('')
+    : `<div class="empty" style="padding:24px">${ic('store')}<b>Nenhuma loja cadastrada</b>Cadastre a primeira loja abaixo para começar.</div>`;
+}
+
+/* ================= SINCRONIZAÇÃO ================= */
+function renderSync(){
+  const el = $('#sync'); let cls, txt;
+  if (!navigator.onLine){ cls='off'; txt='Offline · salvando no aparelho'; }
+  else if (syncPendente){ cls='pend'; txt='Sincronizando…'; }
+  else { cls='ok'; txt='Sincronizado'; }
+  el.className = 'sync ' + cls; el.querySelector('span').textContent = txt;
+}
+addEventListener('online', renderSync); addEventListener('offline', renderSync);
+let _raf = 0;
+function agendar(){ if (_raf) return; _raf = requestAnimationFrame(() => { _raf = 0; render(); }); }
+
+/* ================= UI HELPERS ================= */
+function toast(msg, tipo='info'){
+  const t = document.createElement('div'); t.className = 'toast ' + tipo;
+  t.innerHTML = ic(tipo==='ok'?'check':tipo==='err'?'alert':'info') + `<span>${msg}</span>`;
+  $('#toasts').appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='.3s'; setTimeout(() => t.remove(), 300); }, 3800);
+}
+function abrir(id){ $('#'+id).classList.add('on'); }
+function fechar(id){ $('#'+id).classList.remove('on'); if (id==='mCols') pendenteImport=null; focarBip(); }
+let _cfRes;
+function confirmar(titulo, msg, { ok='Confirmar', perigo=false } = {}){
+  $('#cfT').textContent = titulo; $('#cfM').innerHTML = msg; $('#cfOk').textContent = ok;
+  $('#cfOk').className = 'btn ' + (perigo ? 'btn-danger' : 'btn-primary');
+  $('#cfIc').className = 'mi' + (perigo ? ' danger' : ''); $('#cfIc').innerHTML = ic(perigo ? 'alert' : 'info');
+  $('#cfInput').style.display = 'none';
+  abrir('mConfirm'); return new Promise(r => _cfRes = r);
+}
+async function pedirTexto(titulo, msg, valor=''){
+  const p = confirmar(titulo, msg, { ok:'Salvar' });
+  const inp = $('#cfInput'); inp.style.display = 'block'; inp.value = valor; setTimeout(() => inp.select(), 60);
+  return (await p) ? inp.value.trim() : null;
+}
+$('#cfInput').addEventListener('keydown', e => { if (e.key === 'Enter') resolverConfirm(true); });
+function resolverConfirm(v){ $('#mConfirm').classList.remove('on'); _cfRes && _cfRes(v); _cfRes = null; focarBip(); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal.on').forEach(m => { if (m.id==='mConfirm') resolverConfirm(false); else if (m.id==='mRel') fecharRel(); else if (m.id==='mProdImp'){ m.classList.remove('on'); pImp = null; } else fechar(m.id); }); });
+function precisaLoja(){ if (!lojaId){ toast('Cadastre ou selecione uma loja primeiro.', 'err'); ir('config'); return true; } return false; }
+
+/* ================= NAVEGAÇÃO ================= */
+function ir(v){
+  viewAtual = v;
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.dataset.v === v));
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  $('#tTitle').textContent = TITULOS[v][0]; $('#tSub').textContent = TITULOS[v][1];
+  if (v === 'config') preencherConfig();
+  document.querySelectorAll('.chipbtn').forEach(b => b.style.display = ['pcadastro','pconf','produtos'].includes(v) ? 'none' : '');
+  render(); focarBip();
+  if (v === 'pcadastro') focarCadastro();
+}
+document.querySelectorAll('nav a').forEach(a => a.addEventListener('click', () => ir(a.dataset.v)));
+
+/* ================= SOM ================= */
+let ac;
+function som(tipo){
+  if (!CFG.som) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const tocar = (f, d, t0=0, type='sine') => { const o=ac.createOscillator(), g=ac.createGain(); o.type=type; o.frequency.value=f; o.connect(g); g.connect(ac.destination); const s=ac.currentTime+t0; g.gain.setValueAtTime(.14,s); g.gain.exponentialRampToValueAtTime(.001,s+d); o.start(s); o.stop(s+d); };
+    if (tipo==='ok') tocar(1320,.12);
+    else if (tipo==='sold'){ tocar(880,.1); tocar(1100,.12,.11); }
+    else if (tipo==='info') tocar(660,.12);
+    else { tocar(220,.18,0,'square'); tocar(180,.25,.2,'square'); }
+  } catch (e) {}
+}
+
+/* ================= IMPORTAÇÃO ================= */
+$('#arquivo').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  if (precisaLoja()){ e.target.value=''; return; }
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array', raw:false });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      prepararImport(XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:'' }), 'Arquivo: ' + file.name);
+    } catch (err){ toast('Não foi possível ler o arquivo: ' + err.message, 'err'); }
+    e.target.value = '';
+  };
+  r.readAsArrayBuffer(file);
+});
+let destinoColar = 'chips';
+function abrirColar(texto='', destino='chips'){ if (precisaLoja()) return; destinoColar = destino;
+  $('#colarTxt').innerHTML = destino === 'produtos'
+    ? 'No Excel, selecione as linhas <b>com o cabeçalho</b> (nome, código de venda, IMEI 1, IMEI 2, código de barras, quantidade…), copie com <b>Ctrl+C</b> e cole abaixo com <b>Ctrl+V</b>.'
+    : 'No Excel, selecione as linhas (pode incluir o cabeçalho), copie com <b>Ctrl+C</b> e cole abaixo com <b>Ctrl+V</b>. Também aceita uma lista simples de ICCIDs, um por linha.';
+  $('#txtColar').value = texto; atualizarColarInfo(); abrir('mColar'); setTimeout(() => $('#txtColar').focus(), 60); }
+function parseColado(txt){
+  const linhas = txt.replace(/\r/g,'').split('\n').filter(l => l.trim() !== '');
+  const sep = linhas.some(l => l.includes('\t')) ? '\t' : (linhas.some(l => l.includes(';')) ? ';' : null);
+  return linhas.map(l => sep ? l.split(sep).map(c => c.trim()) : [l.trim()]);
+}
+function atualizarColarInfo(){
+  const t = $('#txtColar').value;
+  if (!t.trim()){ $('#colarInfo').textContent = 'Nenhum dado colado.'; return; }
+  const l = parseColado(t);
+  $('#colarInfo').textContent = `${l.length} linha(s) · ${Math.max(...l.map(x => x.length))} coluna(s) detectadas.`;
+}
+$('#txtColar').addEventListener('input', atualizarColarInfo);
+function processarColado(){
+  const t = $('#txtColar').value;
+  if (!t.trim()){ toast('Cole os dados da planilha primeiro.', 'err'); return; }
+  $('#mColar').classList.remove('on');
+  if (destinoColar === 'produtos') prepararImportProd(parseColado(t), 'Dados colados da área de transferência');
+  else prepararImport(parseColado(t), 'Dados colados da área de transferência');
+}
+function prepararImport(linhas, origem){
+  linhas = linhas.filter(l => l.some(c => String(c).trim() !== ''));
+  if (!linhas.length){ toast('Nenhum dado encontrado.', 'err'); return; }
+  let hi = linhas.findIndex(l => l.some(c => /iccid|chip|sim\b|serial/i.test(String(c))));
+  let temCab = hi >= 0;
+  if (!temCab){ temCab = linhas[0].some(c => /[a-zà-ú]/i.test(String(c)) && norm(c).length < 15); hi = temCab ? 0 : -1; }
+  const dados = temCab ? linhas.slice(hi+1) : linhas;
+  const nCols = Math.max(temCab ? linhas[hi].length : 0, ...dados.slice(0,200).map(l => l.length));
+  const cab = Array.from({ length:nCols }, (_,i) => temCab && String(linhas[hi][i] ?? '').trim() ? String(linhas[hi][i]).trim() : 'Coluna ' + (i+1));
+  let iIcc = cab.findIndex(c => /iccid/i.test(c));
+  if (iIcc < 0){ let best=-1, sc=0; for (let i=0;i<nCols;i++){ const s = dados.slice(0,200).filter(l => /^89\d{16,20}$/.test(norm(l[i]))).length; if (s>sc){ sc=s; best=i; } } iIcc = best>=0 ? best : 0; }
+  const iSt = cab.findIndex(c => /status|situa|vend/i.test(c));
+  $('#selIccid').innerHTML = cab.map((c,i) => `<option value="${i}" ${i===iIcc?'selected':''}>${esc(c)}</option>`).join('');
+  $('#selStatus').innerHTML = '<option value="-1">— Nenhuma —</option>' + cab.map((c,i) => `<option value="${i}" ${i===iSt?'selected':''}>${esc(c)}</option>`).join('');
+  $('#selModo').value = 'substituir';
+  $('#modalInfo').innerHTML = `${esc(origem)} · <b>${nf(dados.length)}</b> linha(s) · Loja <b>${esc(lojaNome())}</b>. Confira se a coluna do ICCID está correta.`;
+  pendenteImport = { cab, dados };
+  desenharPreview(); abrir('mCols');
+}
+function desenharPreview(){
+  if (!pendenteImport) return;
+  const { cab, dados } = pendenteImport; const iI = +$('#selIccid').value;
+  $('#preview').innerHTML = `<table><thead><tr>${cab.map((c,i) => `<th class="${i===iI?'sel':''}">${esc(c)}</th>`).join('')}</tr></thead><tbody>${dados.slice(0,6).map(l => `<tr>${cab.map((_,i) => `<td class="${i===iI?'sel':''}">${esc(l[i] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+$('#selIccid').addEventListener('change', desenharPreview);
+const chaveInfo = k => String(k).replace(/^_+|_+$/g,'').replace(/[.\[\]*`~\/]/g,' ').trim() || 'Campo';
+
+async function confirmarImport(){
+  const { cab, dados } = pendenteImport;
+  const iI = +$('#selIccid').value, iS = +$('#selStatus').value, modoImp = $('#selModo').value;
+  if (modoImp === 'substituir' && chips.size){
+    $('#mCols').classList.remove('on');
+    const ok = await confirmar('Substituir lista atual?', `A lista atual da loja <b>${esc(lojaNome())}</b> com <b>${nf(chips.size)}</b> chip(s) será substituída. O histórico é mantido.`, { ok:'Substituir', perigo:true });
+    if (!ok){ abrir('mCols'); return; }
+  }
+  const novosIds = new Set(), novos = []; let dup = 0, inv = 0; const t = agora();
+  for (const l of dados){
+    const iccid = norm(l[iI]);
+    if (iccid.length < 15){ inv++; continue; }
+    if (novosIds.has(iccid) || (modoImp === 'somar' && chips.has(iccid))){ dup++; continue; }
+    novosIds.add(iccid);
+    const info = {};
+    cab.forEach((c,i) => { if (i!==iI && i!==iS && String(l[i] ?? '').trim() !== '') info[chaveInfo(c)] = String(l[i]).trim(); });
+    const vend = iS >= 0 && /vend|ativad|baixad/i.test(String(l[iS]));
+    novos.push({ iccid, info, status: vend ? 'vendido' : 'pendente', importadoEm: t, atualizadoEm: vend ? t : null, por: operador() });
+  }
+  $('#mCols').classList.remove('on'); pendenteImport = null;
+  if (!novos.length){ toast('Nenhum chip novo para importar.', 'err'); return; }
+  const ops = [];
+  if (modoImp === 'substituir') [...chips.keys()].forEach(id => { if (!novosIds.has(id)) ops.push(b => b.delete(chipRef(id))); });
+  novos.forEach(c => ops.push(b => b.set(chipRef(c.iccid), c)));
+  ops.push(evOp('import', { qtd: novos.length, msg: modoImp }));
+  toast(`Salvando ${nf(novos.length)} chip(s) no banco…`, 'info');
+  commit(ops).then(() => toast(`<b>${nf(novos.length)}</b> chip(s) salvo(s) no banco${dup?` · ${dup} repetido(s) ignorado(s)`:''}${inv?` · ${inv} linha(s) sem ICCID`:''}.`, 'ok')).catch(() => {});
+  focarBip();
+}
+
+/* ================= LEITURA ================= */
+const inp = $('#bip');
+inp.addEventListener('keydown', e => { if (e.key==='Enter' || e.key==='Tab'){ e.preventDefault(); processar(inp.value); inp.value=''; } });
+inp.addEventListener('paste', e => {
+  const t = (e.clipboardData || window.clipboardData).getData('text');
+  if (/[\n\t]/.test(t.trim())){ e.preventDefault(); abrirColar(t); }
+});
+function focarBip(){ if (document.querySelector('.modal.on') || $('#login').classList.contains('on')) return; if (viewAtual==='conferencia') setTimeout(() => inp.focus(), 40); else if (viewAtual==='pconf') setTimeout(() => $('#pbip').focus(), 40); }
+document.addEventListener('click', e => { if ((viewAtual==='conferencia' || viewAtual==='pconf') && !e.target.closest('input,select,textarea,button,.modal,a')) focarBip(); });
+function setModo(m){
+  modo = m; $('#mConf').classList.toggle('on', m==='conf'); $('#mVenda').classList.toggle('on', m==='venda');
+  $('#scanbox').classList.toggle('venda', m==='venda');
+  inp.placeholder = m==='conf' ? 'Aguardando leitura…' : 'Bipe o chip vendido…'; renderLoteBar(); focarBip();
+}
+function mostrar(cls, icone, titulo, iccid, sub){
+  const r = $('#result'); r.className = 'result ' + cls; void r.offsetWidth; r.classList.add('flash');
+  r.innerHTML = `<div class="ri">${ic(icone)}</div><div><h4>${titulo}</h4><p>${iccid?`<code>${iccid}</code><br>`:''}${sub||''}</p></div>`;
+}
+const infoResumo = c => Object.entries(c.info || {}).slice(0,3).map(([k,v]) => `${esc(k)}: ${esc(v)}`).join(' · ');
+
+function processar(valor){
+  const cod = norm(valor); if (!cod) return;
+  if (precisaLoja()) return;
+  if (cod.length < 15){ som('err'); mostrar('err','alert','Código inválido',esc(valor),'O código lido não parece um ICCID.'); return; }
+  if (!chips.size){ som('err'); mostrar('err','alert','Nenhuma planilha importada',cod,'Importe ou cole a planilha antes de conferir.'); return; }
+  if (tipoLeitura === 'lote'){ processarLote(cod); return; }
+  const c = acharChip(cod);
+  if (!c){
+    if (modo === 'venda'){
+      som('err'); mostrar('err','x','ICCID não encontrado',cod,'Este chip não consta na planilha importada.');
+      commit([evOp('erro', { iccid: cod, msg: 'Venda: não consta na planilha' })]);
+    } else {
+      const novo = { iccid: cod, info: {}, status: 'extra', importadoEm: null, atualizadoEm: agora(), por: operador() };
+      chips.set(cod, novo);
+      commit([b => b.set(chipRef(cod), novo), evOp('extra', { iccid: cod, msg: 'Fora da planilha' })]);
+      som('err'); mostrar('err','alert','Chip fora da planilha',cod,'O chip está fisicamente na loja mas não consta na lista importada.');
+    }
+    render(); return;
+  }
+  if (modo === 'venda'){
+    if (c.status === 'vendido'){ som('err'); mostrar('err','repeat','Bipagem repetida — já registrado como vendido',c.iccid,'Vendido em '+fmt(c.atualizadoEm)+(c.por?' por '+esc(c.por):'')+'. Esta leitura não foi contada.'); return; }
+    const antes = c.status; commit([opStatus(c,'vendido'), evOp('vendido', { iccid: c.iccid, antes, msg: 'Venda registrada' })]);
+    som('sold'); mostrar('sold','cart','Venda registrada',c.iccid,infoResumo(c));
+  } else {
+    if (c.status === 'vendido'){
+      som('err'); mostrar('err','alert','Atenção: chip consta como VENDIDO',c.iccid,'Ele está fisicamente na loja. Verifique a venda.');
+      commit([evOp('erro', { iccid: c.iccid, msg: 'Consta vendido mas está na loja' })]); destacar(c.iccid); return;
+    }
+    if (c.status === 'estoque'){ som('err'); mostrar('err','repeat','Bipagem repetida — chip já conferido',c.iccid,'Lido em '+fmt(c.atualizadoEm)+(c.por?' por '+esc(c.por):'')+'. Esta leitura não foi contada.'); destacar(c.iccid); return; }
+    if (c.status === 'extra'){ som('err'); mostrar('err','repeat','Bipagem repetida — chip fora da planilha já registrado',c.iccid,'Registrado em '+fmt(c.atualizadoEm)+'. Esta leitura não foi contada.'); return; }
+    const antes = c.status; commit([opStatus(c,'estoque'), evOp('conferido', { iccid: c.iccid, antes, msg: 'Conferido' })]);
+    som('ok'); mostrar('ok','check','Em estoque',c.iccid,infoResumo(c));
+  }
+  render();
+}
+/* ================= LOTE (1º e último ICCID) ================= */
+const LOTE_PADRAO = 50;
+const base19 = s => s.length >= 20 ? s.slice(0, 19) : s;
+function luhn(p){ let s = 0, d = true; for (let i = p.length-1; i >= 0; i--){ let x = +p[i]; if (d){ x *= 2; if (x > 9) x -= 9; } s += x; d = !d; } return String((10 - s%10) % 10); }
+function setTipo(t){
+  tipoLeitura = t; limparPendente();
+  $('#tUni').classList.toggle('on', t==='uni'); $('#tLote').classList.toggle('on', t==='lote');
+  inp.placeholder = t==='lote' ? 'Bipe o 1º ICCID do lote…' : (modo==='conf' ? 'Aguardando leitura…' : 'Bipe o chip vendido…');
+  renderLoteBar(); focarBip();
+}
+const LOTE_PRAZO = 60; // segundos para bipar o último código
+function limparPendente(){ loteInicio = null; clearInterval(loteTimer); loteTimer = null; }
+function cancelarLote(){ limparPendente(); renderLoteBar(); focarBip(); toast('Leitura do lote cancelada.', 'info'); }
+function iniciarPrazo(){
+  clearInterval(loteTimer); loteExpira = Date.now() + LOTE_PRAZO*1000;
+  loteTimer = setInterval(() => {
+    const rest = Math.ceil((loteExpira - Date.now())/1000);
+    if (rest <= 0){
+      const perdido = loteInicio; limparPendente(); renderLoteBar(); som('err');
+      mostrar('err','clock','Tempo esgotado — 1º código descartado', perdido, `O último ICCID não foi bipado em ${LOTE_PRAZO} segundos. Bipe o pacote de novo, começando pelo 1º código.`);
+      return;
+    }
+    const el = $('#loteSeg'); if (el) el.textContent = rest + 's';
+  }, 250);
+}
+function renderLoteBar(){
+  const b = $('#loteBar');
+  if (tipoLeitura !== 'lote'){ b.style.display = 'none'; return; }
+  b.style.display = 'flex'; b.className = 'lotebar' + (loteInicio ? ' s2' : '');
+  const acao = modo === 'venda' ? 'marcados como <b style="display:inline;color:inherit">vendidos</b>' : 'conferidos em estoque';
+  b.innerHTML = loteInicio
+    ? `<span class="step">2</span><div><b>Agora bipe o ÚLTIMO ICCID do pacote</b><small>1º lido: <code>${loteInicio}</code> · tempo restante <b id="loteSeg" style="display:inline">${Math.max(0,Math.ceil((loteExpira-Date.now())/1000))}s</b></small></div><button class="btn btn-outline btn-sm" onclick="cancelarLote()">Cancelar</button>`
+    : `<span class="step">1</span><div><b>Bipe o PRIMEIRO ICCID do pacote lacrado</b><small>Em seguida o último. Os ${LOTE_PADRAO} chips da faixa serão ${acao}. Pacote aberto: use o modo Unitário.</small></div>${ultimoLote ? `<button class="btn btn-outline btn-sm" onclick="desfazerLote()">${ic('undo')}Desfazer último lote</button>` : ''}`;
+  inp.placeholder = loteInicio ? 'Bipe o ÚLTIMO ICCID do lote…' : 'Bipe o 1º ICCID do lote…';
+}
+async function processarLote(cod){
+  if (!loteInicio){
+    loteInicio = cod; som('info'); iniciarPrazo();
+    mostrar('info','box','1º ICCID do lote lido',cod,`Agora bipe o ÚLTIMO ICCID do mesmo pacote (até ${LOTE_PRAZO} segundos).`);
+    renderLoteBar(); return;
+  }
+  const c1 = loteInicio, c2 = cod; limparPendente(); renderLoteBar();
+  const a = base19(c1), b = base19(c2);
+  if (c1 === c2){ som('err'); mostrar('err','alert','Mesmo código lido duas vezes',cod,'Bipe o primeiro e depois o último ICCID do pacote.'); return; }
+  if (a.length !== b.length || a.slice(0, 12) !== b.slice(0, 12)){ som('err'); mostrar('err','alert','Os códigos não são do mesmo lote',`${c1} / ${c2}`,'Confira se bipou o primeiro e o último do mesmo pacote.'); return; }
+  let x = BigInt(a), y = BigInt(b); if (x > y) [x, y] = [y, x];
+  const qtd = Number(y - x) + 1;
+  if (qtd !== LOTE_PADRAO){
+    som('err');
+    mostrar('err','alert',`Lote bloqueado: a faixa tem ${nf(qtd)} chips, e não ${LOTE_PADRAO}`, `${c1} / ${c2}`,
+      'Nenhum chip foi alterado. Provavelmente foram bipados códigos de pacotes diferentes ou o mesmo lado duas vezes. Bipe de novo o 1º e o último do mesmo pacote.');
+    return;
+  }
+  const [ini, fim] = BigInt(base19(c1)) <= BigInt(base19(c2)) ? [c1, c2] : [c2, c1];
+  const idx = new Map(); chips.forEach(ch => idx.set(base19(ch.iccid), ch));
+  const alvo = [], ja = [], conflito = [], fora = [];
+  for (let i = x; i <= y; i++){
+    const key = String(i).padStart(a.length, '0'); const ch = idx.get(key);
+    if (!ch){ fora.push(a.length === 19 ? key + luhn(key) : key); continue; }
+    if (modo === 'venda'){ (ch.status === 'vendido' ? ja : alvo).push(ch); }
+    else { (ch.status === 'estoque' ? ja : ch.status === 'vendido' ? conflito : alvo).push(ch); }
+  }
+  const st = modo === 'venda' ? 'vendido' : 'estoque';
+  const faixa = `${ini} → ${fim}`;
+  const anteriores = alvo.map(ch => ({ iccid: ch.iccid, status: ch.status, atualizadoEm: ch.atualizadoEm ?? null, por: ch.por ?? null }));
+  const evRefs = [];
+  const ops = alvo.map(ch => opStatus(ch, st));
+  if (alvo.length) ops.push(evOp(modo === 'venda' ? 'vendido' : 'conferido', { lote:true, faixa, qtd: alvo.length, iccids: alvo.map(ch => ch.iccid), antes: Object.fromEntries(anteriores.map(a => [a.iccid, a.status])), msg: `Lote · ${alvo.length} chip(s)` }, evRefs));
+  if (modo !== 'venda' && fora.length){
+    const t = agora();
+    fora.forEach(id => { const n = { iccid:id, info:{ Lote: faixa }, status:'extra', importadoEm:null, atualizadoEm:t, por:operador() }; chips.set(id, n); ops.push(b2 => b2.set(chipRef(id), n)); });
+    ops.push(evOp('extra', { lote:true, faixa, qtd: fora.length, iccids: fora, msg: `Lote · ${fora.length} fora da planilha` }, evRefs));
+  }
+  if (conflito.length) ops.push(evOp('erro', { lote:true, faixa, qtd: conflito.length, iccids: conflito.map(ch => ch.iccid), msg: `Lote · ${conflito.length} constam vendidos` }, evRefs));
+  if (!alvo.length && !fora.length && !conflito.length){
+    som('err'); mostrarEm('result','err','repeat','Bipagem repetida — lote já '+(modo==='venda'?'vendido':'conferido'), faixa, `Os ${nf(qtd)} chips deste pacote já estavam ${modo==='venda'?'vendidos':'conferidos'}. Nada foi contado de novo.`); return;
+  }
+  if (ops.length) commit(ops);
+  anteriores.forEach(a => { a.novoEm = chips.get(a.iccid).atualizadoEm; });
+  ultimoLote = { faixa, modo, lojaId, anteriores, extras: modo !== 'venda' ? fora.slice() : [], evRefs };
+  renderLoteBar();
+  const det = [`<b>${nf(alvo.length)}</b> ${modo==='venda'?'vendido(s)':'conferido(s)'} agora`];
+  if (ja.length) det.push(`${nf(ja.length)} já estavam ${modo==='venda'?'vendidos':'conferidos'}`);
+  if (conflito.length) det.push(`<b style="color:var(--miss)">${nf(conflito.length)} constam como VENDIDOS</b>`);
+  if (fora.length) det.push(`<b style="color:var(--miss)">${nf(fora.length)} não constam na planilha</b>${modo==='venda'?' (ignorados)':''}`);
+  const titulo = `Lote de ${nf(qtd)} chips ${modo==='venda' ? 'vendido' : 'conferido'}`;
+  if (conflito.length || fora.length){ som('err'); mostrar('err','box',titulo + ' com divergências', faixa, det.join(' · ')); }
+  else if (modo === 'venda'){ som('sold'); mostrar('sold','box',titulo, faixa, det.join(' · ')); }
+  else { som('ok'); mostrar('ok','box',titulo, faixa, det.join(' · ')); }
+  render();
+}
+async function desfazerLote(){
+  const u = ultimoLote; if (!u) return;
+  if (u.lojaId !== lojaId){ toast('O último lote foi de outra loja. Selecione a loja dele para desfazer.', 'err'); return; }
+  if (!await confirmar('Desfazer último lote?', `A baixa da faixa <b>${esc(u.faixa)}</b> será desfeita e os chips voltam para a situação anterior.`, { ok:'Desfazer', perigo:true })) return;
+  const ops = []; let pulados = 0;
+  u.anteriores.forEach(a => {
+    const ch = chips.get(a.iccid); if (!ch) return;
+    if (ch.atualizadoEm !== a.novoEm){ pulados++; return; }   // foi alterado depois do lote: não mexe
+    Object.assign(ch, { status: a.status, atualizadoEm: a.atualizadoEm, por: a.por });
+    ops.push(b => b.update(chipRef(a.iccid), { status: a.status, atualizadoEm: a.atualizadoEm, por: a.por }));
+  });
+  u.extras.forEach(id => { const ch = chips.get(id); if (ch && ch.status === 'extra'){ chips.delete(id); ops.push(b => b.delete(chipRef(id))); } });
+  u.evRefs.forEach(r => ops.push(b => b.delete(r)));
+  ops.push(evOp('desfeito', { faixa: u.faixa, msg: 'Lote desfeito' }));
+  ultimoLote = null; commit(ops); render(); renderLoteBar();
+  som('info'); mostrar('info','undo','Último lote desfeito', u.faixa, pulados ? `${pulados} chip(s) foram alterados depois do lote e não foram mexidos.` : 'Os chips voltaram para a situação anterior.');
+  toast('Lote desfeito.', 'info'); focarBip();
+}
+async function excluirLeitura(evId){
+  const e = eventos.find(x => x.id === evId); if (!e) return;
+  if (e.prod === 'importacao'){ toast('Para desfazer uma importação, exclua os itens na lista de Produtos.', 'err'); return; }
+  const prod = e.tipo.startsWith('p_'), p = prod ? produtos.get(e.ref) : null;
+  const alvoTxt = e.lote ? `do lote <b>${esc(e.faixa)}</b> (${nf(e.qtd)} chips)` : `de <b>${esc(e.iccid || e.codigo || '')}</b>${p ? ' · ' + descProd(p) : ''}`;
+  const erroSo = e.tipo === 'erro' || e.tipo === 'p_erro';
+  const titulo = e.tipo === 'p_entrada' ? 'Excluir este lançamento de entrada?' : 'Excluir esta leitura?';
+  const msg = e.tipo === 'p_entrada'
+    ? `O lançamento ${alvoTxt} será desfeito${p && p.tipo !== 'celular' ? ` (−${nf(e.qtd || 1)} no estoque)` : ' e o aparelho sai do cadastro'}.`
+    : `A leitura ${alvoTxt} será excluída${erroSo ? ' da lista' : ' e o item volta para a situação anterior'}.`;
+  if (!await confirmar(titulo, msg, { ok:'Excluir', perigo:true })) return;
+  const ops = [b => b.delete(L().collection('eventos').doc(evId))]; let pulados = 0; const t = agora();
+  const ids = e.iccids || (e.iccid ? [e.iccid] : []);
+  if (e.tipo === 'conferido' || e.tipo === 'vendido'){
+    const stAtual = e.tipo === 'conferido' ? 'estoque' : 'vendido';
+    ids.forEach(iccid => {
+      const c = chips.get(iccid); if (!c) return;
+      if (c.status !== stAtual){ pulados++; return; }
+      const antes = (e.antes && typeof e.antes === 'object') ? (e.antes[iccid] || 'pendente') : (e.antes || 'pendente');
+      c.status = antes; c.atualizadoEm = t;
+      ops.push(b => b.update(chipRef(iccid), { status: antes, atualizadoEm: t, por: operador() }));
+    });
+    if (ultimoLote && e.lote && ultimoLote.faixa === e.faixa){ ultimoLote = null; renderLoteBar(); }
+  } else if (e.tipo === 'extra'){
+    ids.forEach(iccid => { const c = chips.get(iccid); if (c && c.status === 'extra'){ chips.delete(iccid); ops.push(b => b.delete(chipRef(iccid))); } });
+  } else if (prod && p){
+    const cel = p.tipo === 'celular', ref = prodRef(e.ref);
+    if (e.tipo === 'p_conferido'){
+      if (cel){ if (p.conf === 'ok'){ p.conf = null; ops.push(b => b.update(ref, { conf:null, atualizadoEm:t })); } else pulados++; }
+      else if ((p.conferidos || 0) > 0){ p.conferidos--; ops.push(b => b.update(ref, { conferidos: INC(-1), atualizadoEm:t })); }
+    } else if (e.tipo === 'p_vendido'){
+      if (cel){ if (p.status === 'vendido'){ p.status = 'estoque'; ops.push(b => b.update(ref, { status:'estoque', atualizadoEm:t })); } else pulados++; }
+      else { p.qtd = (p.qtd || 0) + 1; p.vendidos = Math.max(0, (p.vendidos || 0) - 1); ops.push(b => b.update(ref, { qtd: INC(1), vendidos: INC(-1), atualizadoEm:t })); }
+    } else if (e.tipo === 'p_entrada'){
+      if (cel){
+        if (p.status === 'vendido'){ toast('Esse aparelho já foi vendido. Para apagar, use a lista de Produtos.', 'err'); return; }
+        produtos.delete(e.ref); reindexar(); ops.push(b => b.delete(ref));
+      } else {
+        const q = Math.min(e.qtd || 1, p.qtd || 0); p.qtd = (p.qtd || 0) - q;
+        if (p.qtd <= 0 && !p.vendidos && !p.conferidos){ produtos.delete(e.ref); reindexar(); ops.push(b => b.delete(ref)); }
+        else ops.push(b => b.update(ref, { qtd: INC(-q), atualizadoEm:t }));
+      }
+    }
+  }
+  eventos = eventos.filter(x => x.id !== evId);
+  commit(ops); render();
+  toast(pulados ? `Leitura excluída · ${nf(pulados)} item(ns) foram alterados depois e ficaram como estão.` : (e.tipo === 'p_entrada' ? 'Lançamento excluído.' : 'Leitura excluída.'), 'info');
+  focarBip(); if (viewAtual === 'pcadastro') focarCadastro();
+}
+/* ================= RELATÓRIO DA CONFERÊNCIA ================= */
+let relAtual = null, relAba = 'faltando';
+const REL_ABAS = { faltando:['Não encontrados','var(--miss)','faltando'], estoque:['Encontrados','var(--ok)','estoque'], vendido:['Vendidos','var(--sold)','vendido'], extra:['Fora da planilha','var(--extra)','extra'] };
+function montarRelatorio(h){
+  const by = st => listaChips().filter(c => c.status === st).map(c => c.iccid).sort();
+  let listas, nota = '', meta;
+  if (h && h.faltandoIds){
+    listas = { faltando: h.faltandoIds, estoque: h.estoqueIds || [], vendido: h.vendidoIds || [], extra: h.extraIds || [] };
+    meta = { titulo:'Relatório da conferência', em:h.em, loja:h.loja, operador:h.operador };
+  } else if (h){
+    const ehUltima = historico[0] && historico[0].em === h.em;
+    if (ehUltima){
+      listas = { faltando: by('faltando'), estoque: by('estoque'), vendido: by('vendido'), extra: by('extra') };
+      nota = 'Esta conferência foi finalizada antes do relatório automático. As listas abaixo foram montadas a partir da situação atual dos chips.';
+    } else {
+      listas = { faltando:[], estoque:[], vendido:[], extra:[] };
+      nota = 'Esta conferência foi finalizada antes do relatório automático e já houve outra depois dela, por isso a lista de ICCIDs não está disponível. Os totais abaixo são os registrados no fechamento.';
+    }
+    meta = { titulo:'Relatório da conferência', em:h.em, loja:h.loja, operador:h.operador, totais:h };
+  } else {
+    const pend = by('pendente');
+    listas = { faltando: by('faltando').concat(pend), estoque: by('estoque'), vendido: by('vendido'), extra: by('extra') };
+    if (pend.length) nota = `Conferência ainda em andamento: ${nf(pend.length)} chip(s) ainda não foram bipados e aparecem em "Não encontrados". Ao finalizar, o relatório definitivo abre automaticamente.`;
+    meta = { titulo:'Relatório da conferência atual (parcial)', em:agora(), loja:lojaNome(), operador:operador() };
+  }
+  const t = meta.totais;
+  const n = { estoque: t ? t.estoque : listas.estoque.length, vendido: t ? t.vendido : listas.vendido.length, faltando: t ? t.faltando : listas.faltando.length, extra: t ? t.extra : listas.extra.length };
+  n.total = t ? t.total : n.estoque + n.vendido + n.faltando;
+  n.acur = pct(n.estoque + n.vendido, n.total);
+  return { listas, nota, meta, n };
+}
+function abrirRelatorio(h){ if (precisaLoja()) return; relAtual = montarRelatorio(h); relAba = relAtual.listas.faltando.length || !relAtual.listas.estoque.length ? 'faltando' : 'estoque'; renderRelatorio(); abrir('mRel'); }
+function abrirRelatorioHist(id){ const h = historico.find(x => x.id === id) || historico[0]; if (h) abrirRelatorio(h); }
+function fecharRel(){ $('#mRel').classList.remove('on'); focarBip(); }
+function setRelAba(a){ relAba = a; renderRelatorio(); }
+function renderRelatorio(){
+  const r = relAtual; if (!r) return;
+  if (r.kind === 'prod') return renderRelProd();
+  const logo = document.querySelector('.brand img').src;
+  const L = r.listas[relAba] || [], [nomeAba, cor, pill] = REL_ABAS[relAba];
+  const MAX = 3000;
+  const linhas = L.slice(0, MAX).map((iccid, i) => { const c = chips.get(iccid); const info = c ? Object.entries(c.info || {}).slice(0, 3).map(([a, b]) => `<b>${esc(a)}:</b> ${esc(b)}`).join(' · ') : ''; return `<tr class="r-${pill}"><td style="color:var(--muted);width:56px">${i + 1}</td><td class="iccid">${iccid}</td><td class="info-cell">${info || '—'}</td></tr>`; }).join('');
+  $('#relBox').innerHTML = `
+    <div class="rel-h">
+      <img src="${logo}" alt="TIM">
+      <div><h3>${r.meta.titulo}</h3><p>${esc(r.meta.loja || '—')} · ${fmt(r.meta.em)} · ${esc(r.meta.operador || '—')}</p></div>
+      <div class="r no-print">
+        <button class="btn btn-outline btn-sm" onclick="copiarRel()" ${L.length ? '' : 'disabled'}>${ic('copy')}Copiar ICCIDs</button>
+        <button class="btn btn-outline btn-sm" onclick="exportarRel()">${ic('download')}Excel</button>
+        <button class="btn btn-outline btn-sm" onclick="imprimirRel()">${ic('print')}Imprimir</button>
+        <button class="ib" title="Fechar" onclick="fecharRel()">${ic('x')}</button>
+      </div>
+    </div>
+    <div class="rel-body">
+      <div class="rel-kpis">
+        <div><small>Total da planilha</small><b>${nf(r.n.total)}</b></div>
+        <div><small>Encontrados</small><b style="color:var(--ok)">${nf(r.n.estoque)}</b></div>
+        <div><small>Não encontrados</small><b style="color:var(--miss)">${nf(r.n.faltando)}</b></div>
+        <div><small>Vendidos</small><b style="color:var(--sold)">${nf(r.n.vendido)}</b></div>
+        <div><small>Fora da planilha</small><b style="color:var(--extra)">${nf(r.n.extra)}</b></div>
+        <div><small>Acuracidade</small><b style="color:var(--tim)">${r.n.acur}%</b></div>
+      </div>
+      ${r.nota ? `<div class="rel-nota">${r.nota}</div>` : ''}
+      <div class="tabs no-print">${Object.entries(REL_ABAS).map(([k, [nm]]) => `<button class="${relAba === k ? 'on' : ''}" onclick="setRelAba('${k}')">${nm}<span class="n">${nf(r.listas[k].length)}</span></button>`).join('')}</div>
+      <p class="rel-sec-t" style="margin-top:14px"><i class="dot" style="background:${cor}"></i>${nomeAba} — ${nf(L.length)} ICCID(s)</p>
+      <div class="rel-list">${L.length ? `<table><thead><tr><th>#</th><th>ICCID</th><th>Informações</th></tr></thead><tbody>${linhas}</tbody></table>${L.length > MAX ? `<div class="empty" style="padding:14px">Mostrando ${nf(MAX)} de ${nf(L.length)}. O Excel tem a lista completa.</div>` : ''}` : `<div class="empty">${ic(relAba === 'faltando' ? 'check' : 'sim')}<b>${relAba === 'faltando' ? 'Nenhum chip deixou de ser encontrado' : 'Nenhum chip nesta lista'}</b></div>`}</div>
+    </div>`;
+}
+async function copiarRel(){
+  if (relAtual.kind === 'prod') return copiarRelProd();
+  const txt = (relAtual.listas[relAba] || []).join('\n');
+  try { await navigator.clipboard.writeText(txt); }
+  catch (e){ const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  toast(`${nf((relAtual.listas[relAba] || []).length)} ICCID(s) copiados. Cole no Excel ou no WhatsApp.`, 'ok');
+}
+function exportarRel(){
+  if (relAtual.kind === 'prod') return exportarRelProd();
+  const r = relAtual, wb = XLSX.utils.book_new();
+  const res = XLSX.utils.aoa_to_sheet([
+    [r.meta.titulo], ['Loja', r.meta.loja || '—'], ['Data', fmt(r.meta.em)], ['Operador', r.meta.operador || '—'], [],
+    ['Total da planilha', r.n.total], ['Encontrados', r.n.estoque], ['Não encontrados', r.n.faltando], ['Vendidos', r.n.vendido], ['Fora da planilha', r.n.extra], ['Acuracidade', r.n.acur + '%']
+  ]); res['!cols'] = [{ wch:24 }, { wch:26 }];
+  XLSX.utils.book_append_sheet(wb, res, 'Resumo');
+  Object.entries(REL_ABAS).forEach(([k, [nm]]) => {
+    const rows = r.listas[k].map(iccid => Object.assign({ ICCID: iccid }, (chips.get(iccid) || {}).info || {}));
+    const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ ICCID: '' }]); ws['!cols'] = [{ wch:24 }];
+    XLSX.utils.book_append_sheet(wb, ws, nm);
+  });
+  XLSX.writeFile(wb, `Relatorio_Conferencia_${(r.meta.loja || 'loja').replace(/[^\w]+/g, '_')}_${String(r.meta.em).slice(0, 10)}.xlsx`);
+  toast('Relatório exportado.', 'ok');
+}
+function imprimirRel(){ document.body.classList.add('print-rel'); setTimeout(() => { window.print(); document.body.classList.remove('print-rel'); }, 50); }
+
+function destacar(iccid){ const tr = document.querySelector(`tr[data-i="${iccid}"]`); if (tr){ tr.scrollIntoView({ block:'nearest' }); tr.classList.add('hl'); setTimeout(() => tr.classList.remove('hl'), 1600); } }
+
+/* ================= AÇÕES ================= */
+async function mudar(iccid, st){
+  const c = chips.get(iccid); if (!c) return;
+  if (st === 'remover'){
+    if (!await confirmar('Remover chip?', `O ICCID <b>${iccid}</b> será removido da lista.`, { ok:'Remover', perigo:true })) return;
+    chips.delete(iccid); commit([b => b.delete(chipRef(iccid)), evOp('removido', { iccid })]); toast('Chip removido.', 'info');
+  } else {
+    const antes = c.status; commit([opStatus(c, st), evOp(st==='estoque' ? 'conferido' : 'vendido', { iccid, antes, msg: 'Alterado manualmente' })]);
+    toast(`${iccid} → ${NOMES[st]}`, 'ok');
+  }
+  render();
+}
+async function finalizar(){
+  if (precisaLoja()) return;
+  if (!chips.size){ toast('Importe uma planilha primeiro.', 'err'); return; }
+  const pend = listaChips().filter(c => c.status === 'pendente');
+  if (!await confirmar('Finalizar conferência?', pend.length ? `<b>${nf(pend.length)}</b> chip(s) não foram bipados e ficarão marcados em <b style="color:var(--miss)">vermelho</b> como não encontrados.` : 'Todos os chips foram verificados.', { ok:'Finalizar', perigo: pend.length>0 })) return;
+  const ops = pend.map(c => opStatus(c, 'faltando'));
+  const k = contar();
+  const ids = st => listaChips().filter(c => c.status === st).map(c => c.iccid);
+  const h = { em: agora(), loja: lojaNome(), operador: operador(), total:k.total, estoque:k.estoque, vendido:k.vendido, faltando:k.faltando, extra:k.extra,
+    faltandoIds: ids('faltando'), estoqueIds: ids('estoque'), vendidoIds: ids('vendido'), extraIds: ids('extra') };
+  ops.push(b => b.set(L().collection('historico').doc(), h));
+  ops.push(evOp('faltando', { qtd: pend.length }));
+  historico.unshift(h);
+  commit(ops); render();
+  if (pend.length){ som('err'); mostrar('err','flag','Conferência finalizada',null,`${nf(pend.length)} chip(s) não encontrado(s). Veja a lista em Chips → Não encontrados.`); }
+  else { som('ok'); mostrar('ok','flag','Conferência finalizada',null,'Todos os chips foram localizados.'); }
+  toast('Conferência finalizada e registrada no histórico.', 'ok');
+  abrirRelatorio(h);
+}
+async function novaConferencia(){
+  if (!chips.size) return;
+  if (!await confirmar('Iniciar nova conferência?', 'Chips em estoque e não encontrados voltam para <b>a conferir</b>. Vendidos continuam vendidos e os chips fora da planilha são removidos.', { ok:'Iniciar' })) return;
+  const ops = [];
+  listaChips().forEach(c => {
+    if (c.status === 'extra'){ chips.delete(c.iccid); ops.push(b => b.delete(chipRef(c.iccid))); }
+    else if (c.status === 'estoque' || c.status === 'faltando'){ c.status = 'pendente'; c.atualizadoEm = null; ops.push(b => b.update(chipRef(c.iccid), { status:'pendente', atualizadoEm:null, por: operador() })); }
+  });
+  ops.push(evOp('reset'));
+  commit(ops); render();
+  $('#result').className = 'result'; $('#result').innerHTML = `<div class="ri">${ic('barcode')}</div><div><h4 style="color:var(--text-2)">Nova conferência iniciada</h4><p>Comece a bipar os chips.</p></div>`;
+  toast('Nova conferência iniciada.', 'info');
+}
+
+/* ================= EXPORTAÇÃO / DADOS ================= */
+function exportar(){
+  if (!chips.size){ toast('Nada para exportar.', 'err'); return; }
+  const k = contar(), s = semana(), lista = listaChips();
+  const linhas = lista.map(c => Object.assign({ ICCID: c.iccid }, c.info, { Status: NOMES[c.status], 'Atualizado em': fmt(c.atualizadoEm), 'Por': c.por || '' }));
+  const ws = XLSX.utils.json_to_sheet(linhas); ws['!cols'] = [{ wch:24 }];
+  const res = XLSX.utils.aoa_to_sheet([
+    ['TIM Conferência — Relatório'], ['Gerado em', fmt(agora())], ['Loja', lojaNome() || '—'], ['Operador', operador()], [],
+    ['TOTAL GERAL'], ['Total de chips', k.total], ['Em estoque', k.estoque], ['Vendidos', k.vendido], ['Não encontrados', k.faltando], ['A conferir', k.pendente], ['Fora da planilha', k.extra], [],
+    ['TOTAL DA SEMANA (' + inicioSemana().toLocaleDateString('pt-BR') + ')'], ['Importados', s.importados], ['Conferidos', s.conferidos], ['Vendidos', s.vendidos], ['Não encontrados', s.faltando], ['Conferências finalizadas', s.confs]
+  ]); res['!cols'] = [{ wch:30 }, { wch:24 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, res, 'Resumo'); XLSX.utils.book_append_sheet(wb, ws, 'Chips');
+  ['estoque','vendido','faltando'].forEach(st => { const l = linhas.filter((_,i) => lista[i].status === st); if (l.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(l), NOMES[st]); });
+  XLSX.writeFile(wb, `TIM_Conferencia_${(lojaNome()||'loja').replace(/[^\w]+/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Relatório exportado.', 'ok');
+}
+function backup(){
+  if (!lojaId) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ loja: lojaNome(), geradoEm: agora(), chips: listaChips(), historico, produtos: [...produtos.entries()].map(([id, p]) => Object.assign({ id }, p)) })], { type:'application/json' }));
+  a.download = `TIM_Conferencia_backup_${(lojaNome()||'loja').replace(/[^\w]+/g,'_')}_${new Date().toISOString().slice(0,10)}.json`; a.click();
+  toast('Backup baixado.', 'ok');
+}
+async function limparTudo(){
+  if (precisaLoja()) return;
+  if (!await confirmar('Apagar dados da loja?', `Chips, aparelhos, acessórios, histórico e totais da loja <b>${esc(lojaNome())}</b> serão apagados para <b>todos os usuários</b>. Esta ação não pode ser desfeita.`, { ok:'Apagar tudo', perigo:true })) return;
+  try {
+    const [ev, hi, pr, ph] = await Promise.all([L().collection('eventos').get(), L().collection('historico').get(), L().collection('produtos').get(), L().collection('phistorico').get()]);
+    const ops = [...chips.keys()].map(id => b => b.delete(chipRef(id)));
+    [ev, hi, pr, ph].forEach(q => q.docs.forEach(d => ops.push(b => b.delete(d.ref)))); produtos.clear(); reindexar();
+    chips.clear(); historico = []; eventos = [];
+    commit(ops); render(); toast('Dados da loja apagados.', 'info');
+  } catch (e){ erroFs(e); }
+}
+function preencherConfig(){ $('#cfOper').value = CFG.operador;  $('#cfSom').checked = CFG.som; renderLojas(); }
+function salvarConfig(){ CFG.operador = $('#cfOper').value.trim() || CFG.operador; CFG.som = $('#cfSom').checked; lsSet('timconf_cfg', JSON.stringify(CFG)); render(); toast('Preferências salvas.', 'ok'); }
+
+/* ================= TOTAIS ================= */
+function contar(){ const r = { total:0, estoque:0, vendido:0, faltando:0, pendente:0, extra:0 }; chips.forEach(c => { r[c.status]++; if (c.status !== 'extra') r.total++; }); return r; }
+function semana(){
+  const soma = t => eventos.filter(e => e.tipo === t).reduce((a,e) => a + (e.qtd || 0), 0);
+  const u = t => new Set(eventos.filter(e => e.tipo === t).flatMap(e => e.iccids || [e.iccid])).size;
+  return { importados: soma('import'), conferidos: u('conferido'), vendidos: u('vendido'), faltando: soma('faltando'), confs: historico.filter(h => naSemana(h.em)).length };
+}
+function porDia(){
+  const ini = inicioSemana(), dias = Array.from({ length:7 }, () => ({ c:new Set(), v:new Set() }));
+  eventos.forEach(e => { const i = Math.floor((new Date(e.em) - ini) / 864e5); if (i<0 || i>6) return; const ids = e.iccids || [e.iccid]; if (e.tipo==='conferido') ids.forEach(x => dias[i].c.add(x)); if (e.tipo==='vendido') ids.forEach(x => dias[i].v.add(x)); });
+  return dias.map(d => ({ c:d.c.size, v:d.v.size }));
+}
+function leituras(){
+  const corte = Math.max(0, ...eventos.filter(e => e.tipo==='reset' || e.tipo==='import').map(e => Date.parse(e.em)));
+  return eventos.filter(e => ['conferido','vendido','extra','erro'].includes(e.tipo) && Date.parse(e.em) >= corte).sort((a,b) => b.em.localeCompare(a.em));
+}
+
+/* ================= RENDER ================= */
+function barra(k){ const T = k.total || 1; return `<span class="p-ok" style="width:${k.estoque/T*100}%"></span><span class="p-sold" style="width:${k.vendido/T*100}%"></span><span class="p-miss" style="width:${k.faltando/T*100}%"></span>`; }
+function render(){
+  const k = contar(), s = semana();
+  $('#nPend').textContent = nf(k.pendente); $('#nTotal').textContent = nf(k.total);
+  $('#sOper').textContent = operador(); $('#sLoja').textContent = lojaNome() || 'Nenhuma loja';
+  $('#avatar').textContent = (CFG.operador || 'TC').replace(/@.*/,'').split(/[\s._-]+/).filter(Boolean).map(p => p[0]).slice(0,2).join('').toUpperCase();
+  $('#kTotal').textContent = nf(k.total); $('#kEstoque').textContent = nf(k.estoque); $('#kVendido').textContent = nf(k.vendido);
+  $('#kFalta').textContent = nf(k.faltando); $('#kPend').textContent = nf(k.pendente);
+  $('#kEstoqueP').textContent = pct(k.estoque,k.total) + '% do total'; $('#kVendidoP').textContent = pct(k.vendido,k.total) + '% do total';
+  $('#kFaltaP').textContent = pct(k.faltando,k.total) + '% do total'; $('#kExtra').textContent = nf(k.extra) + ' fora da planilha';
+  const verif = k.total - k.pendente;
+  $('#progPct').textContent = pct(verif,k.total) + '%'; $('#progTxt').textContent = `${nf(verif)} de ${nf(k.total)} chips`;
+  $('#progSub').textContent = k.total ? `${nf(k.pendente)} chip(s) aguardando leitura` : 'Nenhuma planilha importada';
+  $('#progBar').innerHTML = barra(k); $('#progBar2').innerHTML = barra(k);
+  const parts = [['Em estoque',k.estoque,'var(--ok-500)'],['Vendidos',k.vendido,'var(--sold-500)'],['Não encontrados',k.faltando,'var(--miss-500)'],['A conferir',k.pendente,'var(--pend-500)']];
+  const R = 60, C = 2*Math.PI*R; let off = 0;
+  $('#donut').innerHTML = `<svg viewBox="0 0 150 150" width="150" height="150"><circle cx="75" cy="75" r="${R}" fill="none" stroke="#f2f4f7" stroke-width="16"/>${k.total ? parts.map(([,v,c]) => { const Lg = v/k.total*C; const el = `<circle cx="75" cy="75" r="${R}" fill="none" stroke="${c}" stroke-width="16" stroke-dasharray="${Lg} ${C-Lg}" stroke-dashoffset="${-off}" transform="rotate(-90 75 75)"/>`; off += Lg; return el; }).join('') : ''}</svg><div class="center"><div><b>${nf(k.total)}</b><small>chips</small></div></div>`;
+  $('#donutL').innerHTML = parts.map(([n,v,c]) => `<div><i class="dot" style="background:${c}"></i>${n}<b>${nf(v)}</b><em>${pct(v,k.total)}%</em></div>`).join('');
+  const ini = inicioSemana(), fim = new Date(ini); fim.setDate(fim.getDate()+6);
+  $('#wkRange').textContent = `Segunda ${ini.toLocaleDateString('pt-BR')} a domingo ${fim.toLocaleDateString('pt-BR')}` + (lojaNome() ? ' · ' + lojaNome() : '');
+  $('#wk').innerHTML = [['Importados',s.importados,'var(--tim)'],['Conferidos',s.conferidos,'var(--ok)'],['Vendidos',s.vendidos,'var(--sold)'],['Não encontrados',s.faltando,'var(--miss)'],['Conferências finalizadas',s.confs,'var(--text)']].map(([n,v,c]) => `<div><small>${n}</small><b style="color:${c}">${nf(v)}</b></div>`).join('');
+  const pd = porDia(), mx = Math.max(1, ...pd.map(d => Math.max(d.c, d.v))), hj = (new Date().getDay()+6)%7;
+  $('#chart').innerHTML = pd.map(d => `<div class="d"><div class="bars"><div class="bar" data-v="${d.c}" style="height:${d.c/mx*100}%;background:var(--ok-500)"></div><div class="bar" data-v="${d.v}" style="height:${d.v/mx*100}%;background:var(--sold-500)"></div></div></div>`).join('');
+  $('#chartX').innerHTML = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map((d,i) => `<span class="${i===hj?'hoje':''}">${d}</span>`).join('');
+  $('#cEst').textContent = nf(k.estoque); $('#cVen').textContent = nf(k.vendido); $('#cPen').textContent = nf(k.pendente); $('#cExt').textContent = nf(k.extra);
+  const lt = leituras();
+  $('#nLeit').textContent = nf(lt.length) + ' leitura(s)';
+  const FI = { conferido:['check','var(--ok-50)','var(--ok)'], vendido:['cart','var(--sold-50)','var(--sold)'], extra:['alert','var(--extra-50)','var(--extra)'], erro:['x','var(--miss-50)','var(--miss)'] };
+  $('#feed').innerHTML = lt.length ? lt.slice(0,60).map(l => { const f = FI[l.tipo] || FI.erro; return `<li><span class="fi" style="background:${f[1]};color:${f[2]}">${ic(l.lote ? 'box' : f[0])}</span><div><code>${l.lote ? esc(l.faixa) : l.iccid}</code><small>${esc(l.msg)} · ${esc(l.por||'')}</small></div><time>${hora(l.em)}</time>${l.id ? `<button class="ib r del" title="Excluir esta leitura" onclick="excluirLeitura('${l.id}')">${ic('trash')}</button>` : ''}</li>`; }).join('')
+    : `<li class="empty" style="display:block;border:0">${ic('barcode')}<b>Nenhuma leitura ainda</b>Os chips bipados aparecem aqui, inclusive os de outros leitores.</li>`;
+  renderTabela(k); renderHist(); renderSync(); renderProdutos();
+}
+function renderTabela(k){
+  k = k || contar();
+  const tabs = [['todos','Todos',k.total+k.extra],['estoque','Em estoque',k.estoque],['vendido','Vendidos',k.vendido],['faltando','Não encontrados',k.faltando],['pendente','A conferir',k.pendente],['extra','Fora da planilha',k.extra]];
+  $('#tabs').innerHTML = tabs.map(([f,n,v]) => `<button class="${filtro===f?'on':''}" onclick="setFiltro('${f}')">${n}<span class="n">${nf(v)}</span></button>`).join('');
+  const q = $('#busca').value.trim().toLowerCase();
+  const ordem = { extra:0, faltando:1, pendente:2, vendido:3, estoque:4 };
+  let lista = listaChips().filter(x => filtro==='todos' || x.status===filtro);
+  if (q) lista = lista.filter(x => (x.iccid + ' ' + Object.values(x.info||{}).join(' ')).toLowerCase().includes(q));
+  lista.sort((a,b) => ordem[a.status]-ordem[b.status] || (b.atualizadoEm||'').localeCompare(a.atualizadoEm||'') || a.iccid.localeCompare(b.iccid));
+  const pags = Math.max(1, Math.ceil(lista.length/POR_PAG)); if (pagina > pags) pagina = pags;
+  const ini = (pagina-1)*POR_PAG, pg = lista.slice(ini, ini+POR_PAG);
+  $('#tbody').innerHTML = pg.map((x,i) => `<tr class="r-${x.status}" data-i="${x.iccid}">
+    <td style="color:var(--muted)">${ini+i+1}</td><td class="iccid">${x.iccid}</td>
+    <td class="info-cell">${Object.entries(x.info||{}).slice(0,4).map(([a,b]) => `<b>${esc(a)}:</b> ${esc(b)}`).join(' · ') || '—'}</td>
+    <td><span class="pill ${x.status}">${NOMES[x.status]}</span></td>
+    <td style="font-size:13px;white-space:nowrap">${fmt(x.atualizadoEm)}${x.por && x.atualizadoEm ? `<br><small style="color:var(--muted)">${esc(x.por)}</small>` : ''}</td>
+    <td><div class="acts">
+      ${x.status!=='estoque' ? `<button class="ib g" title="Marcar em estoque" onclick="mudar('${x.iccid}','estoque')">${ic('check')}</button>` : ''}
+      ${x.status!=='vendido' ? `<button class="ib y" title="Marcar como vendido" onclick="mudar('${x.iccid}','vendido')">${ic('cart')}</button>` : ''}
+      <button class="ib r" title="Remover" onclick="mudar('${x.iccid}','remover')">${ic('trash')}</button></div></td></tr>`).join('');
+  const vz = $('#vazio');
+  if (!chips.size){ vz.style.display='block'; vz.innerHTML = `${ic('sim')}<b>Nenhum chip carregado${lojaNome() ? ' em ' + esc(lojaNome()) : ''}</b>Importe um arquivo Excel ou cole a planilha para começar.<div style="margin-top:14px;display:flex;gap:8px;justify-content:center"><button class="btn btn-outline" onclick="abrirColar()">${ic('clip')}Colar planilha</button><button class="btn btn-primary" onclick="if(!precisaLoja())$('#arquivo').click()">${ic('upload')}Importar Excel</button></div>`; }
+  else if (!lista.length){ vz.style.display='block'; vz.innerHTML = `${ic('search')}<b>Nenhum resultado</b>Nenhum chip neste filtro.`; }
+  else vz.style.display = 'none';
+  $('#pager').innerHTML = lista.length ? `Exibindo <b>&nbsp;${nf(ini+1)}–${nf(Math.min(ini+POR_PAG, lista.length))}&nbsp;</b> de <b>&nbsp;${nf(lista.length)}</b><div class="r"><button class="btn btn-outline btn-sm" ${pagina<=1?'disabled':''} onclick="pagina--;renderTabela()">Anterior</button><span style="padding:6px 8px">${pagina} / ${pags}</span><button class="btn btn-outline btn-sm" ${pagina>=pags?'disabled':''} onclick="pagina++;renderTabela()">Próxima</button></div>` : '';
+}
+function setFiltro(f){ filtro = f; pagina = 1; renderTabela(); }
+$('#busca').addEventListener('input', () => { pagina = 1; renderTabela(); });
+function renderHist(){
+  $('#histBody').innerHTML = historico.length ? historico.map(h => { const a = pct(h.estoque + h.vendido, h.total); return `<tr><td style="white-space:nowrap">${fmt(h.em)}</td><td>${esc(h.loja||'—')}</td><td>${esc(h.operador||'—')}</td><td><b>${nf(h.total)}</b></td>
+    <td><span class="pill estoque">${nf(h.estoque)}</span></td><td><span class="pill vendido">${nf(h.vendido)}</span></td><td><span class="pill faltando">${nf(h.faltando)}</span></td><td><span class="pill extra">${nf(h.extra)}</span></td>
+    <td><div style="display:flex;align-items:center;gap:8px"><div class="prog" style="width:80px;height:8px"><span class="p-ok" style="width:${a}%"></span></div><b style="font-size:12.5px">${a}%</b></div></td><td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="abrirRelatorioHist('${h.id || ''}')">${ic('file')}Ver</button></td></tr>`; }).join('')
+    : `<tr><td colspan="10"><div class="empty">${ic('clock')}<b>Nenhuma conferência finalizada</b>Ao finalizar uma conferência, o resumo fica registrado aqui.</div></td></tr>`;
+}
+
+
+/* ================= APARELHOS E ACESSÓRIOS ================= */
+const INC = n => firebase.firestore.FieldValue.increment(n);
+const prodRef = id => L().collection('produtos').doc(id);
+const TIPOS = { celular:'Celular', acessorio:'Acessório', pelicula:'Película' };
+const gen = (tipo, m) => tipo === 'pelicula' ? m.replace(/o$/, 'a') : m;
+const codigo = v => String(v ?? '').trim().replace(/\s+/g, '').toUpperCase();
+function imeiValido(s){ return /^\d{15}$/.test(s) && luhn(s.slice(0, 14)) === s[14]; }
+function reindexar(){
+  idxImei = new Map(); idxEan = new Map(); idxCod = new Map();
+  produtos.forEach((p, id) => {
+    if (p.tipo === 'celular'){ if (p.imei1) idxImei.set(p.imei1, id); if (p.imei2) idxImei.set(p.imei2, id); }
+    else if (p.ean) idxEan.set(p.ean, id);
+    if (p.codigoVenda){ const k = codigo(p.codigoVenda); if (!idxCod.has(k)) idxCod.set(k, []); idxCod.get(k).push(id); }
+  });
+}
+function descProd(p){ return esc(p.descricao || p.codigoVenda || TIPOS[p.tipo]); }
+function mostrarEm(id, cls, icone, titulo, codigoTxt, sub){
+  const r = $('#' + id); r.className = 'result ' + cls; void r.offsetWidth; r.classList.add('flash');
+  r.innerHTML = `<div class="ri">${ic(icone)}</div><div><h4>${titulo}</h4><p>${codigoTxt ? `<code>${codigoTxt}</code><br>` : ''}${sub || ''}</p></div>`;
+}
+function situacao(p){
+  if (p.tipo === 'celular'){
+    if (p.status === 'vendido') return ['vendido', 'Vendido'];
+    if (p.conf === 'ok') return ['estoque', 'Conferido'];
+    if (p.conf === 'falta') return ['faltando', 'Não encontrado'];
+    return ['pendente', 'A conferir'];
+  }
+  const q = p.qtd || 0, c = p.conferidos || 0;
+  if (p.falta > 0) return ['faltando', `Faltam ${nf(p.falta)}`];
+  if (q <= 0) return ['vendido', 'Esgotado'];
+  if (c > q) return ['extra', `${nf(c - q)} a mais`];
+  if (c === q) return ['estoque', 'Conferido'];
+  return ['pendente', `${nf(c)} de ${nf(q)} conferidos`];
+}
+
+/* ---------- cadastro ---------- */
+let cadTipo = 'celular';
+function setCadTipo(t){
+  cadTipo = t;
+  $('#cCel').classList.toggle('on', t === 'celular'); $('#cAce').classList.toggle('on', t !== 'celular');
+  $('#fCel').style.display = t === 'celular' ? '' : 'none'; $('#fAce').style.display = t === 'celular' ? 'none' : '';
+  focarCadastro();
+}
+function focarCadastro(){
+  setTimeout(() => {
+    if (cadTipo === 'celular') ($('#celCod').value ? $('#celI1') : $('#celCod')).focus();
+    else $('#aceEan').focus();
+  }, 50);
+}
+function campoErro(el, titulo, cod, sub){ som('err'); mostrarEm('cadResult', 'err', 'alert', titulo, cod, sub); el.select(); el.focus(); }
+function enter(id, fn){ $('#' + id).addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); fn(); } }); }
+
+enter('celCod', () => {
+  const k = codigo($('#celCod').value); $('#celCod').value = k;
+  if (!k){ $('#celCod').focus(); return; }
+  const lst = idxCod.get(k) || []; const ref = lst.map(id => produtos.get(id)).find(p => p && p.tipo === 'celular' && p.descricao);
+  if (ref && !$('#celDesc').value.trim()) $('#celDesc').value = ref.descricao;
+  ($('#celDesc').value.trim() ? $('#celI1') : $('#celDesc')).focus();
+});
+enter('celDesc', () => $('#celI1').focus());
+enter('celI1', () => {
+  const v = norm($('#celI1').value); $('#celI1').value = v;
+  if (!imeiValido(v)) return campoErro($('#celI1'), 'IMEI 1 inválido', v || '—', 'O IMEI deve ter 15 números e dígito verificador correto. Confira se bipou o código certo da caixa.');
+  if (idxImei.has(v)){ const p = produtos.get(idxImei.get(v)); return campoErro($('#celI1'), 'IMEI já cadastrado', v, `${descProd(p)} · ${situacao(p)[1]}`); }
+  if ($('#celSemI2').checked) salvarCelular(); else $('#celI2').focus();
+});
+enter('celI2', () => salvarCelular());
+$('#celSemI2').addEventListener('change', e => { $('#celI2').disabled = e.target.checked; if (e.target.checked) $('#celI2').value = ''; });
+
+function salvarCelular(){
+  if (precisaLoja()) return;
+  const cod = codigo($('#celCod').value), desc = $('#celDesc').value.trim();
+  const i1 = norm($('#celI1').value), semI2 = $('#celSemI2').checked, i2 = semI2 ? '' : norm($('#celI2').value);
+  if (!cod) return campoErro($('#celCod'), 'Informe o código de venda', null, 'Bipe ou digite o código de venda do aparelho.');
+  if (!imeiValido(i1)) return campoErro($('#celI1'), 'IMEI 1 inválido', i1 || '—', 'O IMEI deve ter 15 números e dígito verificador correto.');
+  if (!semI2){
+    if (!imeiValido(i2)) return campoErro($('#celI2'), 'IMEI 2 inválido', i2 || '—', 'Bipe o IMEI 2 da caixa. Se o aparelho for de chip único, marque "Aparelho sem IMEI 2".');
+    if (i2 === i1) return campoErro($('#celI2'), 'IMEI 2 igual ao IMEI 1', i2, 'Bipe o segundo IMEI da caixa (é um número diferente).');
+  }
+  for (const v of [i1, i2].filter(Boolean)) if (idxImei.has(v)){ const p = produtos.get(idxImei.get(v)); return campoErro(v === i1 ? $('#celI1') : $('#celI2'), 'IMEI já cadastrado', v, `${descProd(p)} · ${situacao(p)[1]}`); }
+  const id = 'cel_' + i1, t = agora();
+  const d = { tipo:'celular', codigoVenda: cod, descricao: desc, imei1: i1, imei2: i2, status:'estoque', conf:null, cadastradoEm: t, atualizadoEm: t, por: operador() };
+  produtos.set(id, d); reindexar();
+  commit([b => b.set(prodRef(id), d), evOp('p_entrada', { qtd:1, prod:'celular', ref:id, codigo:i1, msg:`${desc || cod} · cadastrado` })]);
+  som('ok'); mostrarEm('cadResult', 'ok', 'phone', 'Aparelho cadastrado', `IMEI 1 ${i1}${i2 ? ' · IMEI 2 ' + i2 : ''}`, `${esc(desc || '')} · código de venda <b>${esc(cod)}</b>`);
+  $('#celI1').value = ''; $('#celI2').value = '';
+  if (!$('#celManter').checked){ $('#celCod').value = ''; $('#celDesc').value = ''; }
+  render(); focarCadastro();
+}
+function limparCelular(){ ['celCod','celDesc','celI1','celI2'].forEach(i => $('#' + i).value = ''); focarCadastro(); }
+
+enter('aceEan', () => {
+  if (precisaLoja()) return;
+  const ean = codigo($('#aceEan').value); $('#aceEan').value = ean;
+  if (!ean) return;
+  if (idxEan.has(ean)) return entradaItem(idxEan.get(ean));
+  som('info'); mostrarEm('cadResult', 'info', 'tag', 'Produto novo', ean, 'Preencha o código de venda e a descrição e tecle Enter para salvar.');
+  $('#aceCod').focus();
+});
+enter('aceCod', () => { $('#aceCod').value = codigo($('#aceCod').value); $('#aceDesc').focus(); });
+enter('aceDesc', () => salvarItem());
+enter('aceQtd', () => { if (idxEan.has(codigo($('#aceEan').value))) entradaItem(idxEan.get(codigo($('#aceEan').value))); else salvarItem(); });
+
+function entradaItem(id){
+  const p = produtos.get(id), q = Math.max(1, parseInt($('#aceQtd').value) || 1);
+  p.qtd = (p.qtd || 0) + q; p.atualizadoEm = agora();
+  commit([b => b.update(prodRef(id), { qtd: INC(q), atualizadoEm: p.atualizadoEm, por: operador() }), evOp('p_entrada', { qtd:q, prod:p.tipo, ref:id, codigo:p.ean, msg:`${p.descricao || p.codigoVenda} · +${q}` })]);
+  som('ok'); mostrarEm('cadResult', 'ok', 'tag', `+${nf(q)} ${TIPOS[p.tipo].toLowerCase()}${q > 1 ? 's' : ''}`, p.ean, `${descProd(p)} · estoque agora: <b>${nf(p.qtd)}</b>`);
+  $('#aceEan').value = ''; $('#aceQtd').value = 1; render(); $('#aceEan').focus();
+}
+function salvarItem(){
+  if (precisaLoja()) return;
+  const ean = codigo($('#aceEan').value), cod = codigo($('#aceCod').value), desc = $('#aceDesc').value.trim();
+  const tipo = $('#aceTipo').value, q = Math.max(1, parseInt($('#aceQtd').value) || 1);
+  if (!ean) return campoErro($('#aceEan'), 'Bipe o código de barras', null, 'Bipe o código de barras da caixa lacrada.');
+  if (idxEan.has(ean)) return entradaItem(idxEan.get(ean));
+  if (!cod && !desc) return campoErro($('#aceCod'), 'Informe o código de venda ou a descrição', ean, '');
+  const id = 'item_' + ean.replace(/[^\w-]/g, '_'), t = agora();
+  const d = { tipo, ean, codigoVenda: cod, descricao: desc, qtd: q, vendidos: 0, conferidos: 0, falta: 0, cadastradoEm: t, atualizadoEm: t, por: operador() };
+  produtos.set(id, d); reindexar();
+  commit([b => b.set(prodRef(id), d), evOp('p_entrada', { qtd:q, prod:tipo, ref:id, codigo:ean, msg:`${desc || cod} · +${q}` })]);
+  som('ok'); mostrarEm('cadResult', 'ok', 'tag', `${TIPOS[tipo]} ${gen(tipo,'cadastrado')}`, ean, `${esc(desc)} · código de venda <b>${esc(cod || '—')}</b> · estoque: <b>${nf(q)}</b>`);
+  ['aceEan','aceCod','aceDesc'].forEach(i => $('#' + i).value = ''); $('#aceQtd').value = 1;
+  render(); $('#aceEan').focus();
+}
+
+/* ---------- conferência / venda por bip ---------- */
+let pModo = 'conf';
+function setPModo(m){
+  pModo = m; $('#pmConf').classList.toggle('on', m === 'conf'); $('#pmVenda').classList.toggle('on', m === 'venda');
+  $('#pscanbox').classList.toggle('venda', m === 'venda');
+  $('#pbip').placeholder = m === 'conf' ? 'Bipe IMEI ou código de barras…' : 'Bipe o produto vendido…'; focarBip();
+}
+$('#pbip').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Tab'){ e.preventDefault(); processarProduto($('#pbip').value); $('#pbip').value = ''; } });
+function acharProduto(raw){
+  const d = norm(raw), a = codigo(raw);
+  if (d.length === 15 && idxImei.has(d)) return { id: idxImei.get(d), via:'IMEI' };
+  if (idxEan.has(a)) return { id: idxEan.get(a), via:'código de barras' };
+  const lst = idxCod.get(a);
+  if (lst && lst.length === 1) return { id: lst[0], via:'código de venda' };
+  if (lst && lst.length > 1) return { multi: lst.length };
+  return null;
+}
+function processarProduto(raw){
+  const cod = codigo(raw); if (!cod) return;
+  if (precisaLoja()) return;
+  const f = acharProduto(raw);
+  if (!f){ som('err'); mostrarEm('pResult','err','x','Código não cadastrado',esc(cod),'Este IMEI / código não está no cadastro desta loja.'); commit([evOp('p_erro', { codigo:cod, msg:'Não cadastrado' })]); render(); return; }
+  if (f.multi){ som('err'); mostrarEm('pResult','err','alert','Código de venda usado em vários aparelhos',esc(cod),`Existem ${f.multi} aparelhos com esse código. Bipe o IMEI do aparelho.`); return; }
+  const p = produtos.get(f.id), t = agora(), ops = [];
+  if (p.tipo === 'celular'){
+    const idTxt = p.imei1 + (p.imei2 ? ' / ' + p.imei2 : '');
+    if (pModo === 'venda'){
+      if (p.status === 'vendido'){ som('err'); mostrarEm('pResult','err','repeat','Bipagem repetida — aparelho já vendido',idTxt,`${descProd(p)} · vendido em ${fmt(p.atualizadoEm)}. Esta leitura não foi contada.`); return; }
+      p.status = 'vendido'; p.atualizadoEm = t;
+      ops.push(b => b.update(prodRef(f.id), { status:'vendido', atualizadoEm:t, por:operador() }), evOp('p_vendido', { qtd:1, prod:'celular', ref:f.id, codigo:p.imei1, msg:`${p.descricao || p.codigoVenda} · venda` }));
+      som('sold'); mostrarEm('pResult','sold','cart','Venda registrada',idTxt,`${descProd(p)} · código de venda <b>${esc(p.codigoVenda)}</b>`);
+    } else {
+      if (p.status === 'vendido'){ som('err'); mostrarEm('pResult','err','alert','Atenção: aparelho consta como VENDIDO',idTxt,`${descProd(p)} · está fisicamente na loja. Verifique a venda.`); commit([evOp('p_erro', { codigo:p.imei1, msg:`${p.descricao || p.codigoVenda} · consta vendido` })]); render(); return; }
+      if (p.conf === 'ok'){ som('err'); mostrarEm('pResult','err','repeat','Bipagem repetida — aparelho já conferido',idTxt,`${descProd(p)} · lido em ${fmt(p.atualizadoEm)}${p.por ? ' por ' + esc(p.por) : ''}. Esta leitura não foi contada.`); return; }
+      p.conf = 'ok'; p.atualizadoEm = t;
+      ops.push(b => b.update(prodRef(f.id), { conf:'ok', atualizadoEm:t, por:operador() }), evOp('p_conferido', { qtd:1, prod:'celular', ref:f.id, codigo:p.imei1, msg:`${p.descricao || p.codigoVenda} · conferido` }));
+      som('ok'); mostrarEm('pResult','ok','check','Aparelho conferido',idTxt,`${descProd(p)} · lido pelo ${f.via}`);
+    }
+  } else {
+    if (pModo === 'venda'){
+      if ((p.qtd || 0) <= 0){ som('err'); mostrarEm('pResult','err','alert','Sem estoque no sistema',esc(p.ean),`${descProd(p)} · o estoque cadastrado já está zerado.`); return; }
+      p.qtd--; p.vendidos = (p.vendidos || 0) + 1; p.atualizadoEm = t;
+      ops.push(b => b.update(prodRef(f.id), { qtd:INC(-1), vendidos:INC(1), atualizadoEm:t, por:operador() }), evOp('p_vendido', { qtd:1, prod:p.tipo, ref:f.id, codigo:p.ean, msg:`${p.descricao || p.codigoVenda} · venda` }));
+      som('sold'); mostrarEm('pResult','sold','cart',`${TIPOS[p.tipo]} ${gen(p.tipo,'vendido')}`,esc(p.ean),`${descProd(p)} · restam <b>${nf(p.qtd)}</b> em estoque`);
+    } else {
+      if ((p.conferidos || 0) >= (p.qtd || 0)){ som('err'); mostrarEm('pResult','err','repeat',`Bipagem bloqueada — todas as ${nf(p.qtd || 0)} unidades já foram conferidas`,esc(p.ean),`${descProd(p)} · se há mais unidades na loja, faça a entrada no Cadastro. Esta leitura não foi contada.`); return; }
+      p.conferidos = (p.conferidos || 0) + 1; p.atualizadoEm = t;
+      ops.push(b => b.update(prodRef(f.id), { conferidos:INC(1), atualizadoEm:t, por:operador() }), evOp('p_conferido', { qtd:1, prod:p.tipo, ref:f.id, codigo:p.ean, msg:`${p.descricao || p.codigoVenda} · ${p.conferidos}/${p.qtd}` }));
+      if (p.conferidos > (p.qtd || 0)){ som('err'); mostrarEm('pResult','err','alert',`Unidade a mais que o cadastrado`,esc(p.ean),`${descProd(p)} · conferidos <b>${nf(p.conferidos)}</b> de <b>${nf(p.qtd)}</b> cadastrados. Verifique o cadastro de entrada.`); }
+      else { som('ok'); mostrarEm('pResult','ok','check',`${TIPOS[p.tipo]} ${gen(p.tipo,'conferido')} · ${nf(p.conferidos)} de ${nf(p.qtd)}`,esc(p.ean),descProd(p)); }
+    }
+  }
+  commit(ops); render();
+}
+async function finalizarProdutos(){
+  if (precisaLoja()) return;
+  if (!produtos.size){ toast('Nenhum produto cadastrado.', 'err'); return; }
+  const k = contarProd();
+  const faltaItens = [...produtos.values()].filter(p => p.tipo !== 'celular').reduce((a, p) => a + Math.max(0, (p.qtd || 0) - (p.conferidos || 0)), 0);
+  if (!await confirmar('Finalizar conferência de aparelhos e acessórios?', `<b>${nf(k.celPend)}</b> aparelho(s) e <b>${nf(faltaItens)}</b> unidade(s) de acessórios/películas não foram bipados e ficarão em <b style="color:var(--miss)">vermelho</b>.`, { ok:'Finalizar', perigo: (k.celPend + faltaItens) > 0 })) return;
+  const t = agora(), ops = [];
+  produtos.forEach((p, id) => {
+    if (p.tipo === 'celular'){ if (p.status !== 'vendido' && p.conf !== 'ok'){ p.conf = 'falta'; p.atualizadoEm = t; ops.push(b => b.update(prodRef(id), { conf:'falta', atualizadoEm:t, por:operador() })); } }
+    else { const fl = Math.max(0, (p.qtd || 0) - (p.conferidos || 0)); if (fl !== (p.falta || 0)){ p.falta = fl; ops.push(b => b.update(prodRef(id), { falta:fl, atualizadoEm:t, por:operador() })); } }
+  });
+  const k2 = contarProd();
+  const ph = { em:t, loja:lojaNome(), operador:operador(), aparelhos:k2.celEst, aparelhosOk:k2.celOk, aparelhosFalta:k2.celFalta, unidades:k2.itensUn, unidadesOk:k2.itensConf, unidadesFalta:k2.itensFalta, snap: snapProd() };
+  ops.push(b => b.set(L().collection('phistorico').doc(), ph)); phist.unshift(ph);
+  ops.push(evOp('p_final', { qtd: k2.celFalta + k2.itensFalta }));
+  commit(ops); render();
+  const tot = k2.celFalta + k2.itensFalta;
+  if (tot){ som('err'); mostrarEm('pResult','err','flag','Conferência finalizada',null,`${nf(k2.celFalta)} aparelho(s) e ${nf(k2.itensFalta)} unidade(s) não encontrados. Veja em Produtos.`); }
+  else { som('ok'); mostrarEm('pResult','ok','flag','Conferência finalizada',null,'Todos os aparelhos e acessórios foram localizados.'); }
+  toast('Conferência de produtos finalizada.', 'ok');
+  abrirRelProd(ph);
+}
+async function novaConfProdutos(){
+  if (!produtos.size) return;
+  if (!await confirmar('Nova conferência de aparelhos e acessórios?', 'As marcações de conferido e não encontrado voltam a zero. Cadastros, estoque e vendas são mantidos.', { ok:'Iniciar' })) return;
+  const ops = [];
+  produtos.forEach((p, id) => {
+    if (p.tipo === 'celular'){ if (p.conf){ p.conf = null; ops.push(b => b.update(prodRef(id), { conf:null })); } }
+    else if (p.conferidos || p.falta){ p.conferidos = 0; p.falta = 0; ops.push(b => b.update(prodRef(id), { conferidos:0, falta:0 })); }
+  });
+  ops.push(evOp('p_reset')); commit(ops); render();
+  $('#pResult').className = 'result'; $('#pResult').innerHTML = `<div class="ri">${ic('barcode')}</div><div><h4 style="color:var(--text-2)">Nova conferência iniciada</h4><p>Bipe os IMEIs e códigos de barras.</p></div>`;
+  toast('Nova conferência de produtos iniciada.', 'info');
+}
+
+/* ---------- ações na lista ---------- */
+async function acaoProduto(id, acao){
+  const p = produtos.get(id); if (!p) return;
+  const t = agora();
+  if (acao === 'remover'){
+    if (!await confirmar('Excluir cadastro?', `${descProd(p)} será removido do cadastro.`, { ok:'Excluir', perigo:true })) return;
+    produtos.delete(id); reindexar(); commit([b => b.delete(prodRef(id)), evOp('p_removido', { ref:id, msg:p.descricao || p.codigoVenda })]); toast('Cadastro excluído.', 'info');
+  } else if (acao === 'vendido'){
+    p.status = 'vendido'; p.atualizadoEm = t;
+    commit([b => b.update(prodRef(id), { status:'vendido', atualizadoEm:t, por:operador() }), evOp('p_vendido', { qtd:1, prod:'celular', ref:id, codigo:p.imei1, msg:`${p.descricao || p.codigoVenda} · venda manual` })]); toast('Marcado como vendido.', 'ok');
+  } else if (acao === 'estoque'){
+    p.status = 'estoque'; p.conf = 'ok'; p.atualizadoEm = t;
+    commit([b => b.update(prodRef(id), { status:'estoque', conf:'ok', atualizadoEm:t, por:operador() })]); toast('Voltou para o estoque.', 'ok');
+  } else if (acao === 'qtd'){
+    const v = await pedirTexto('Ajustar estoque', `Quantidade em estoque de <b>${descProd(p)}</b>`, String(p.qtd || 0));
+    if (v === null) return; const n = parseInt(v); if (isNaN(n) || n < 0){ toast('Quantidade inválida.', 'err'); return; }
+    p.qtd = n; p.atualizadoEm = t;
+    commit([b => b.update(prodRef(id), { qtd:n, atualizadoEm:t, por:operador() }), evOp('p_ajuste', { ref:id, qtd:n, msg:`${p.descricao || p.codigoVenda} · estoque ajustado para ${n}` })]); toast('Estoque ajustado.', 'ok');
+  }
+  render();
+}
+
+/* ---------- totais e render ---------- */
+function contarProd(){
+  const r = { cel:0, celEst:0, celVend:0, celOk:0, celFalta:0, celPend:0, ace:0, pel:0, itensUn:0, itensConf:0, itensFalta:0, prodItens:0 };
+  produtos.forEach(p => {
+    if (p.tipo === 'celular'){ r.cel++; if (p.status === 'vendido') r.celVend++; else { r.celEst++; if (p.conf === 'ok') r.celOk++; else if (p.conf === 'falta') r.celFalta++; else r.celPend++; } }
+    else { r.prodItens++; const q = Math.max(0, p.qtd || 0); r.itensUn += q; r.itensConf += Math.min(q, p.conferidos || 0); r.itensFalta += p.falta || 0; if (p.tipo === 'pelicula') r.pel += q; else r.ace += q; }
+  });
+  return r;
+}
+function semanaProd(){
+  const soma = (t, f) => eventos.filter(e => e.tipo === t && (!f || f(e))).reduce((a, e) => a + (e.qtd || 0), 0);
+  return { entradas: soma('p_entrada'), entCel: soma('p_entrada', e => e.prod === 'celular'), vendas: soma('p_vendido'), vendCel: soma('p_vendido', e => e.prod === 'celular'), conferidos: soma('p_conferido') };
+}
+function setPFiltro(f){ pFiltro = f; pPagina = 1; renderProdutos(); }
+function renderProdutos(){
+  if (!$('#v-produtos')) return;
+  const k = contarProd(), s = semanaProd();
+  $('#nProd').textContent = nf(k.celEst + k.itensUn);
+  // produtos: KPIs
+  $('#pkCel').textContent = nf(k.celEst); $('#pkCelV').textContent = nf(k.celVend) + ' vendido(s) no total';
+  $('#pkAce').textContent = nf(k.ace); $('#pkPel').textContent = nf(k.pel); $('#pkItens').textContent = nf(k.prodItens) + ' produto(s) cadastrado(s)';
+  $('#pkSemE').textContent = nf(s.entradas); $('#pkSemV').textContent = nf(s.vendas);
+  $('#pkSemSub').textContent = `${nf(s.entCel)} aparelho(s) entraram · ${nf(s.vendCel)} vendido(s)`;
+  // conferência
+  const tot = k.celEst + k.itensUn, ok = k.celOk + k.itensConf;
+  $('#pcCel').textContent = `${nf(k.celOk)}/${nf(k.celEst)}`; $('#pcPend').textContent = nf(k.celPend);
+  $('#pcUn').textContent = `${nf(k.itensConf)}/${nf(k.itensUn)}`; $('#pcFalta').textContent = nf(k.celFalta + k.itensFalta);
+  $('#pProg').innerHTML = `<span class="p-ok" style="width:${tot ? ok / tot * 100 : 0}%"></span><span class="p-miss" style="width:${tot ? (k.celFalta + k.itensFalta) / tot * 100 : 0}%"></span>`;
+  $('#pProgTxt').textContent = tot ? `${pct(ok, tot)}% conferido · ${nf(ok)} de ${nf(tot)} itens em estoque` : 'Nenhum produto cadastrado';
+  // feeds
+  const FI = { p_conferido:['check','var(--ok-50)','var(--ok)'], p_vendido:['cart','var(--sold-50)','var(--sold)'], p_erro:['x','var(--miss-50)','var(--miss)'], p_entrada:['plus','var(--tim-50)','var(--tim)'] };
+  const li = l => { const f = FI[l.tipo] || FI.p_erro; return `<li><span class="fi" style="background:${f[1]};color:${f[2]}">${ic(f[0])}</span><div><code>${esc(l.codigo || '')}</code><small>${esc(l.msg || '')} · ${esc(l.por || '')}</small></div><time>${hora(l.em)}</time>${l.id && l.prod !== 'importacao' ? `<button class="ib r del" title="${l.tipo === 'p_entrada' ? 'Excluir este lançamento' : 'Excluir esta leitura'}" onclick="excluirLeitura('${l.id}')">${ic('trash')}</button>` : ''}</li>`; };
+  const vazioFeed = txt => `<li class="empty" style="display:block;border:0">${ic('barcode')}<b>Nada por aqui ainda</b>${txt}</li>`;
+  const ent = eventos.filter(e => e.tipo === 'p_entrada').sort((a, b) => b.em.localeCompare(a.em));
+  $('#cadFeed').innerHTML = ent.length ? ent.slice(0, 40).map(li).join('') : vazioFeed('Os cadastros da semana aparecem aqui.');
+  $('#cadN').textContent = nf(s.entradas) + ' na semana';
+  const corte = Math.max(0, ...eventos.filter(e => e.tipo === 'p_reset').map(e => Date.parse(e.em)));
+  const lp = eventos.filter(e => ['p_conferido','p_vendido','p_erro'].includes(e.tipo) && Date.parse(e.em) >= corte).sort((a, b) => b.em.localeCompare(a.em));
+  $('#pFeed').innerHTML = lp.length ? lp.slice(0, 60).map(li).join('') : vazioFeed('Os aparelhos e acessórios bipados aparecem aqui.');
+  $('#pFeedN').textContent = nf(lp.length) + ' leitura(s)';
+  // tabela
+  const cont = { todos: produtos.size, celular:0, acessorio:0, pelicula:0, falta:0 };
+  produtos.forEach(p => { cont[p.tipo]++; if (situacao(p)[0] === 'faltando') cont.falta++; });
+  $('#ptabs').innerHTML = [['todos','Todos'],['celular','Celulares'],['acessorio','Acessórios'],['pelicula','Películas'],['falta','Não encontrados']].map(([f, n]) => `<button class="${pFiltro===f?'on':''}" onclick="setPFiltro('${f}')">${n}<span class="n">${nf(cont[f])}</span></button>`).join('');
+  const q = $('#pbusca').value.trim().toLowerCase();
+  let lista = [...produtos.entries()].filter(([, p]) => pFiltro === 'todos' || (pFiltro === 'falta' ? situacao(p)[0] === 'faltando' : p.tipo === pFiltro));
+  if (q) lista = lista.filter(([, p]) => [p.descricao, p.codigoVenda, p.imei1, p.imei2, p.ean].join(' ').toLowerCase().includes(q));
+  const ord = { faltando:0, pendente:1, extra:2, estoque:3, vendido:4 };
+  lista.sort((a, b) => ord[situacao(a[1])[0]] - ord[situacao(b[1])[0]] || (a[1].descricao || '').localeCompare(b[1].descricao || ''));
+  const pags = Math.max(1, Math.ceil(lista.length / POR_PAG)); if (pPagina > pags) pPagina = pags;
+  const ini = (pPagina - 1) * POR_PAG;
+  $('#ptbody').innerHTML = lista.slice(ini, ini + POR_PAG).map(([id, p]) => {
+    const [cls, lbl] = situacao(p), cel = p.tipo === 'celular';
+    return `<tr class="r-${cls}">
+      <td><span class="tipo-tag ${p.tipo}">${ic(cel ? 'phone' : 'tag')}${TIPOS[p.tipo]}</span></td>
+      <td><b style="color:var(--text)">${esc(p.descricao || '—')}</b></td>
+      <td class="iccid">${esc(p.codigoVenda || '—')}</td>
+      <td class="iccid" style="font-size:12.5px">${cel ? `${p.imei1}${p.imei2 ? `<br><span style="color:var(--muted)">${p.imei2}</span>` : ''}` : esc(p.ean)}</td>
+      <td style="text-align:center;font-variant-numeric:tabular-nums">${cel ? '1' : `<b>${nf(p.qtd || 0)}</b>${p.vendidos ? `<br><small style="color:var(--muted)">${nf(p.vendidos)} vend.</small>` : ''}`}</td>
+      <td><span class="pill ${cls}">${lbl}</span></td>
+      <td style="font-size:12.5px;white-space:nowrap">${fmt(p.atualizadoEm)}${p.por ? `<br><small style="color:var(--muted)">${esc(p.por)}</small>` : ''}</td>
+      <td><div class="acts">
+        ${cel && p.status !== 'vendido' ? `<button class="ib y" title="Marcar como vendido" onclick="acaoProduto('${id}','vendido')">${ic('cart')}</button>` : ''}
+        ${cel && p.status === 'vendido' ? `<button class="ib g" title="Voltar ao estoque" onclick="acaoProduto('${id}','estoque')">${ic('undo')}</button>` : ''}
+        ${!cel ? `<button class="ib" title="Ajustar estoque" onclick="acaoProduto('${id}','qtd')">${ic('edit')}</button>` : ''}
+        <button class="ib r" title="Excluir cadastro" onclick="acaoProduto('${id}','remover')">${ic('trash')}</button></div></td></tr>`;
+  }).join('');
+  const vz = $('#pvazio');
+  if (!produtos.size){ vz.style.display = 'block'; vz.innerHTML = `${ic('phone')}<b>Nenhum produto cadastrado${lojaNome() ? ' em ' + esc(lojaNome()) : ''}</b>Cadastre celulares, acessórios e películas na tela de Cadastro.<div style="margin-top:14px"><button class="btn btn-primary" onclick="ir('pcadastro')">${ic('plus')}Ir para o cadastro</button></div>`; }
+  else if (!lista.length){ vz.style.display = 'block'; vz.innerHTML = `${ic('search')}<b>Nenhum resultado</b>Nenhum produto neste filtro.`; }
+  else vz.style.display = 'none';
+  $('#phistBody').innerHTML = phist.length ? phist.map(h => { const a = pct((h.aparelhosOk||0) + (h.unidadesOk||0), (h.aparelhos||0) + (h.unidades||0)); return `<tr><td style="white-space:nowrap">${fmt(h.em)}</td><td>${esc(h.loja||'—')}</td><td>${esc(h.operador||'—')}</td>
+    <td><span class="pill estoque">${nf(h.aparelhosOk)}</span> de ${nf(h.aparelhos)}</td><td><span class="pill estoque">${nf(h.unidadesOk)}</span> de ${nf(h.unidades)}</td>
+    <td><span class="pill faltando">${nf((h.aparelhosFalta||0) + (h.unidadesFalta||0))}</span></td>
+    <td><b>${a}%</b></td><td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="abrirRelProdHist('${h.id || ''}')">${ic('file')}Ver</button></td></tr>`; }).join('')
+    : `<tr><td colspan="8"><div class="empty" style="padding:24px">${ic('clock')}<b>Nenhuma conferência de produtos finalizada</b>Ao finalizar, o relatório abre sozinho e fica guardado aqui.</div></td></tr>`;
+  $('#ppager').innerHTML = lista.length ? `Exibindo <b>&nbsp;${nf(ini + 1)}–${nf(Math.min(ini + POR_PAG, lista.length))}&nbsp;</b> de <b>&nbsp;${nf(lista.length)}</b><div class="r"><button class="btn btn-outline btn-sm" ${pPagina<=1?'disabled':''} onclick="pPagina--;renderProdutos()">Anterior</button><span style="padding:6px 8px">${pPagina} / ${pags}</span><button class="btn btn-outline btn-sm" ${pPagina>=pags?'disabled':''} onclick="pPagina++;renderProdutos()">Próxima</button></div>` : '';
+}
+$('#pbusca').addEventListener('input', () => { pPagina = 1; renderProdutos(); });
+function exportarProdutos(){
+  if (!produtos.size){ toast('Nada para exportar.', 'err'); return; }
+  const lista = [...produtos.values()], k = contarProd(), s = semanaProd();
+  const cel = lista.filter(p => p.tipo === 'celular').map(p => ({ 'Descrição': p.descricao, 'Código de venda': p.codigoVenda, 'IMEI 1': p.imei1, 'IMEI 2': p.imei2 || '', 'Situação': situacao(p)[1], 'Cadastrado em': fmt(p.cadastradoEm), 'Atualizado em': fmt(p.atualizadoEm), 'Por': p.por || '' }));
+  const it = lista.filter(p => p.tipo !== 'celular').map(p => ({ 'Tipo': TIPOS[p.tipo], 'Descrição': p.descricao, 'Código de venda': p.codigoVenda, 'Código de barras': p.ean, 'Estoque': p.qtd || 0, 'Conferidos': p.conferidos || 0, 'Faltando': p.falta || 0, 'Vendidos': p.vendidos || 0, 'Situação': situacao(p)[1], 'Atualizado em': fmt(p.atualizadoEm) }));
+  const res = XLSX.utils.aoa_to_sheet([
+    ['TIM Conferência — Aparelhos e acessórios'], ['Gerado em', fmt(agora())], ['Loja', lojaNome() || '—'], ['Operador', operador()], [],
+    ['Aparelhos em estoque', k.celEst], ['Aparelhos conferidos', k.celOk], ['Aparelhos não encontrados', k.celFalta], ['Aparelhos vendidos', k.celVend], [],
+    ['Acessórios (unidades)', k.ace], ['Películas (unidades)', k.pel], ['Unidades conferidas', k.itensConf], ['Unidades faltando', k.itensFalta], [],
+    ['SEMANA (' + inicioSemana().toLocaleDateString('pt-BR') + ')'], ['Entradas (unidades)', s.entradas], ['Vendas (unidades)', s.vendas]
+  ]); res['!cols'] = [{ wch:30 }, { wch:22 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, res, 'Resumo');
+  if (cel.length){ const w = XLSX.utils.json_to_sheet(cel); w['!cols'] = [{wch:30},{wch:16},{wch:18},{wch:18},{wch:16}]; XLSX.utils.book_append_sheet(wb, w, 'Celulares'); }
+  if (it.length){ const w = XLSX.utils.json_to_sheet(it); w['!cols'] = [{wch:12},{wch:30},{wch:16},{wch:18}]; XLSX.utils.book_append_sheet(wb, w, 'Acessórios e películas'); }
+  XLSX.writeFile(wb, `Aparelhos_Acessorios_${(lojaNome()||'loja').replace(/[^\w]+/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Relatório exportado.', 'ok');
+}
+
+
+/* ================= IMPORTAÇÃO DE PRODUTOS ================= */
+$('#arquivoProd').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try { const wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array', raw:false }); const ws = wb.Sheets[wb.SheetNames[0]];
+      prepararImportProd(XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:'' }), 'Arquivo: ' + file.name); }
+    catch (err){ toast('Não foi possível ler o arquivo: ' + err.message, 'err'); }
+    e.target.value = '';
+  };
+  r.readAsArrayBuffer(file);
+});
+let pImp = null;
+function prepararImportProd(linhas, origem){
+  linhas = linhas.filter(l => l.some(c => String(c).trim() !== ''));
+  if (!linhas.length){ toast('Nenhum dado encontrado.', 'err'); return; }
+  const reCab = /imei|descri|nome|produto|modelo|c[oó]d|barra|ean|gtin|qtd|quant|tipo|categ/i;
+  let hi = linhas.findIndex(l => l.filter(c => reCab.test(String(c))).length >= 1 && l.every(c => norm(c).length < 13));
+  const temCab = hi >= 0 && hi < 5;
+  const dados = temCab ? linhas.slice(hi + 1) : linhas;
+  const nCols = Math.max(temCab ? linhas[hi].length : 0, ...dados.slice(0, 200).map(l => l.length));
+  const cab = Array.from({ length:nCols }, (_, i) => temCab && String(linhas[hi][i] ?? '').trim() ? String(linhas[hi][i]).trim() : 'Coluna ' + (i + 1));
+  const acha = re => cab.findIndex(c => re.test(c));
+  let iI1 = acha(/imei\s*0?1\b|^imei$/i), iI2 = acha(/imei\s*0?2\b/i);
+  const amostra = i => dados.slice(0, 100).map(l => norm(l[i]));
+  if (iI1 < 0){ const cs = []; for (let i = 0; i < nCols; i++) if (amostra(i).filter(imeiValido).length >= Math.max(1, dados.slice(0,100).length * .3)) cs.push(i); iI1 = cs[0] ?? -1; if (iI2 < 0) iI2 = cs[1] ?? -1; }
+  if (iI2 === iI1) iI2 = -1;
+  let iE = acha(/barra|ean|gtin/i);
+  if (iE < 0){ for (let i = 0; i < nCols; i++){ if (i === iI1 || i === iI2) continue; if (amostra(i).filter(v => /^\d{8,14}$/.test(v) && !imeiValido(v)).length >= Math.max(1, dados.slice(0,100).length * .3)){ iE = i; break; } } }
+  const iD = acha(/descri|nome|produto|modelo/i), iC = acha(/c[oó]d(igo)?\.?\s*(de\s*)?venda|sku|refer/i), iQ = acha(/qtd|quant/i), iT = acha(/tipo|categ/i);
+  const opts = sel => '<option value="-1">— Nenhuma —</option>' + cab.map((c, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  $('#pmDesc').innerHTML = opts(iD); $('#pmCod').innerHTML = opts(iC); $('#pmI1').innerHTML = opts(iI1); $('#pmI2').innerHTML = opts(iI2);
+  $('#pmEan').innerHTML = opts(iE); $('#pmQtd').innerHTML = opts(iQ); $('#pmTipo').innerHTML = opts(iT);
+  $('#pimpInfo').innerHTML = `${esc(origem)} · <b>${nf(dados.length)}</b> linha(s) · Loja <b>${esc(lojaNome())}</b>. Confira as colunas abaixo.`;
+  pImp = { cab, dados };
+  ['pmDesc','pmCod','pmI1','pmI2','pmEan','pmQtd','pmTipo'].forEach(id => $('#' + id).onchange = previewProd);
+  previewProd(); abrir('mProdImp');
+}
+function previewProd(){
+  if (!pImp) return;
+  const { cab, dados } = pImp, sel = new Set(['pmDesc','pmCod','pmI1','pmI2','pmEan','pmQtd','pmTipo'].map(id => +$('#' + id).value));
+  $('#ppreview').innerHTML = `<table><thead><tr>${cab.map((c, i) => `<th class="${sel.has(i) ? 'sel' : ''}">${esc(c)}</th>`).join('')}</tr></thead><tbody>${dados.slice(0, 6).map(l => `<tr>${cab.map((_, i) => `<td class="${sel.has(i) ? 'sel' : ''}">${esc(l[i] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+function confirmarImportProd(){
+  if (!pImp) return;
+  const g = id => +$('#' + id).value;
+  const iD = g('pmDesc'), iC = g('pmCod'), i1 = g('pmI1'), i2 = g('pmI2'), iE = g('pmEan'), iQ = g('pmQtd'), iT = g('pmTipo'), pad = $('#pmTipoPad').value;
+  if (i1 < 0 && iE < 0){ toast('Escolha a coluna do IMEI 1 ou do código de barras.', 'err'); return; }
+  const cell = (l, i) => i >= 0 ? String(l[i] ?? '').trim() : '';
+  const ops = [], t = agora(), novosImei = new Set(), invEx = [];
+  let cel = 0, itNovos = 0, itSoma = 0, dup = 0, inval = 0;
+  for (const l of pImp.dados){
+    const im1 = norm(cell(l, i1)), im2 = norm(cell(l, i2)), ean = codigo(cell(l, iE)), desc = cell(l, iD), cod = codigo(cell(l, iC));
+    if (im1){
+      if (!imeiValido(im1) || (im2 && (!imeiValido(im2) || im2 === im1))){ inval++; if (invEx.length < 4) invEx.push(im1); continue; }
+      if (idxImei.has(im1) || novosImei.has(im1) || (im2 && (idxImei.has(im2) || novosImei.has(im2)))){ dup++; continue; }
+      novosImei.add(im1); if (im2) novosImei.add(im2);
+      const id = 'cel_' + im1, d = { tipo:'celular', codigoVenda:cod, descricao:desc, imei1:im1, imei2:im2, status:'estoque', conf:null, cadastradoEm:t, atualizadoEm:t, por:operador() };
+      produtos.set(id, d); ops.push(b => b.set(prodRef(id), d)); cel++; continue;
+    }
+    if (ean){
+      const q = Math.max(1, parseInt(cell(l, iQ)) || 1), tt = cell(l, iT).toLowerCase();
+      const tipo = /pel/.test(tt) ? 'pelicula' : /aces|acess|capa|cabo|carreg|fone/.test(tt) ? 'acessorio' : pad;
+      if (idxEan.has(ean)){ const id = idxEan.get(ean), p = produtos.get(id); p.qtd = (p.qtd || 0) + q; ops.push(b => b.update(prodRef(id), { qtd:INC(q), atualizadoEm:t, por:operador() })); itSoma += q; continue; }
+      const id = 'item_' + ean.replace(/[^\w-]/g, '_'), d = { tipo, ean, codigoVenda:cod, descricao:desc, qtd:q, vendidos:0, conferidos:0, falta:0, cadastradoEm:t, atualizadoEm:t, por:operador() };
+      produtos.set(id, d); idxEan.set(ean, id); ops.push(b => b.set(prodRef(id), d)); itNovos += q; continue;
+    }
+    inval++;
+  }
+  $('#mProdImp').classList.remove('on'); pImp = null; reindexar();
+  const totalUn = cel + itNovos + itSoma;
+  if (!totalUn){ toast(`Nada importado${dup ? ` · ${dup} IMEI(s) já cadastrados` : ''}${inval ? ` · ${inval} linha(s) inválidas` : ''}.`, 'err'); return; }
+  ops.push(evOp('p_entrada', { qtd: totalUn, prod:'importacao', codigo:'Planilha', msg:`Importação · ${cel} celular(es) · ${itNovos + itSoma} unidade(s)` }));
+  toast(`Salvando ${nf(totalUn)} item(ns) no banco…`, 'info');
+  commit(ops).then(() => toast(`Importado: <b>${nf(cel)}</b> celular(es) e <b>${nf(itNovos + itSoma)}</b> unidade(s) de acessórios/películas${dup ? ` · ${dup} IMEI(s) já existiam (ignorados)` : ''}${inval ? ` · ${inval} linha(s) inválidas${invEx.length ? ' (ex.: ' + invEx.join(', ') + ')' : ''}` : ''}.`, 'ok')).catch(() => {});
+  render();
+}
+
+/* ================= RELATÓRIO DE PRODUTOS ================= */
+const PREL_ABAS = { cfalta:['Celulares não encontrados','var(--miss)','faltando'], cok:['Celulares encontrados','var(--ok)','estoque'], cvend:['Celulares vendidos','var(--sold)','vendido'],
+  ifalta:['Acessórios/películas faltando','var(--miss)','faltando'], iok:['Acessórios/películas conferidos','var(--ok)','estoque'], imais:['Unidades a mais','var(--extra)','extra'] };
+function snapProd(){
+  const cel = [], it = [];
+  produtos.forEach(p => {
+    if (p.tipo === 'celular') cel.push({ d:p.descricao || '', c:p.codigoVenda || '', i1:p.imei1, i2:p.imei2 || '', st: p.status === 'vendido' ? 'vendido' : p.conf === 'ok' ? 'ok' : p.conf === 'falta' ? 'falta' : 'pend' });
+    else it.push({ t:p.tipo, d:p.descricao || '', c:p.codigoVenda || '', e:p.ean, q:p.qtd || 0, cf:p.conferidos || 0, v:p.vendidos || 0 });
+  });
+  const ord = (a, b) => (a.d || '').localeCompare(b.d || '');
+  return { cel: cel.sort(ord), it: it.sort(ord) };
+}
+function montarRelProd(h){
+  let snap, nota = '', meta;
+  if (h && h.snap){ snap = h.snap; meta = { titulo:'Relatório da conferência de aparelhos e acessórios', em:h.em, loja:h.loja, operador:h.operador }; }
+  else {
+    snap = snapProd();
+    meta = { titulo: h ? 'Relatório da conferência de aparelhos e acessórios' : 'Relatório de aparelhos e acessórios (parcial)', em: h ? h.em : agora(), loja: lojaNome(), operador: operador() };
+    if (h) nota = 'Esta conferência foi finalizada antes do relatório automático. As listas foram montadas a partir da situação atual dos produtos.';
+    else { const pend = snap.cel.filter(x => x.st === 'pend').length; if (pend) nota = `Conferência em andamento: ${nf(pend)} celular(es) ainda não bipados aparecem em "Celulares não encontrados". Ao finalizar, o relatório definitivo abre sozinho.`; }
+  }
+  const L = { cfalta: snap.cel.filter(x => x.st === 'falta' || x.st === 'pend'), cok: snap.cel.filter(x => x.st === 'ok'), cvend: snap.cel.filter(x => x.st === 'vendido'),
+    ifalta: snap.it.filter(x => x.q > x.cf).map(x => Object.assign({}, x, { f: x.q - x.cf })), iok: snap.it.filter(x => x.q > 0 && x.cf >= x.q), imais: snap.it.filter(x => x.cf > x.q).map(x => Object.assign({}, x, { m: x.cf - x.q })) };
+  const n = { celEst: L.cfalta.length + L.cok.length, celOk: L.cok.length, celFalta: L.cfalta.length, un: snap.it.reduce((a, x) => a + x.q, 0), unOk: snap.it.reduce((a, x) => a + Math.min(x.q, x.cf), 0) };
+  n.unFalta = n.un - n.unOk; n.acur = pct(n.celOk + n.unOk, n.celEst + n.un);
+  return { kind:'prod', listas:L, nota, meta, n };
+}
+function abrirRelProd(h){ if (precisaLoja()) return; relAtual = montarRelProd(h); const L = relAtual.listas; relAba = L.cfalta.length ? 'cfalta' : L.ifalta.length ? 'ifalta' : 'cok'; renderRelatorio(); abrir('mRel'); }
+function abrirRelProdHist(id){ const h = phist.find(x => x.id === id) || phist[0]; if (h) abrirRelProd(h); }
+function renderRelProd(){
+  const r = relAtual, logo = document.querySelector('.brand img').src;
+  const L = r.listas[relAba] || [], [nomeAba, cor, pill] = PREL_ABAS[relAba], ehCel = relAba[0] === 'c';
+  const tabela = ehCel
+    ? `<table><thead><tr><th>#</th><th>Nome / modelo</th><th>Código de venda</th><th>IMEI 1</th><th>IMEI 2</th></tr></thead><tbody>${L.map((x, i) => `<tr class="r-${pill}"><td style="color:var(--muted);width:48px">${i + 1}</td><td><b style="color:var(--text)">${esc(x.d || '—')}</b></td><td class="iccid">${esc(x.c || '—')}</td><td class="iccid">${x.i1}</td><td class="iccid">${x.i2 || '—'}</td></tr>`).join('')}</tbody></table>`
+    : `<table><thead><tr><th>#</th><th>Tipo</th><th>Nome / descrição</th><th>Código de venda</th><th>Código de barras</th><th style="text-align:center">Cadastrado</th><th style="text-align:center">Conferido</th><th style="text-align:center">${relAba === 'imais' ? 'A mais' : relAba === 'ifalta' ? 'Faltando' : 'Vendidos'}</th></tr></thead><tbody>${L.map((x, i) => `<tr class="r-${pill}"><td style="color:var(--muted);width:48px">${i + 1}</td><td><span class="tipo-tag ${x.t}">${ic('tag')}${TIPOS[x.t]}</span></td><td><b style="color:var(--text)">${esc(x.d || '—')}</b></td><td class="iccid">${esc(x.c || '—')}</td><td class="iccid">${esc(x.e)}</td><td style="text-align:center">${nf(x.q)}</td><td style="text-align:center">${nf(x.cf)}</td><td style="text-align:center"><b style="color:${cor}">${nf(relAba === 'imais' ? x.m : relAba === 'ifalta' ? x.f : x.v)}</b></td></tr>`).join('')}</tbody></table>`;
+  $('#relBox').innerHTML = `
+    <div class="rel-h">
+      <img src="${logo}" alt="TIM">
+      <div><h3>${r.meta.titulo}</h3><p>${esc(r.meta.loja || '—')} · ${fmt(r.meta.em)} · ${esc(r.meta.operador || '—')}</p></div>
+      <div class="r no-print">
+        <button class="btn btn-outline btn-sm" onclick="copiarRel()" ${L.length ? '' : 'disabled'}>${ic('copy')}Copiar lista</button>
+        <button class="btn btn-outline btn-sm" onclick="exportarRel()">${ic('download')}Excel</button>
+        <button class="btn btn-outline btn-sm" onclick="imprimirRel()">${ic('print')}Imprimir</button>
+        <button class="ib" title="Fechar" onclick="fecharRel()">${ic('x')}</button>
+      </div>
+    </div>
+    <div class="rel-body">
+      <div class="rel-kpis" style="grid-template-columns:repeat(7,1fr)">
+        <div><small>Celulares em estoque</small><b>${nf(r.n.celEst)}</b></div>
+        <div><small>Celulares encontrados</small><b style="color:var(--ok)">${nf(r.n.celOk)}</b></div>
+        <div><small>Celulares não encontrados</small><b style="color:var(--miss)">${nf(r.n.celFalta)}</b></div>
+        <div><small>Acess./películas (un.)</small><b>${nf(r.n.un)}</b></div>
+        <div><small>Unidades conferidas</small><b style="color:var(--ok)">${nf(r.n.unOk)}</b></div>
+        <div><small>Unidades faltando</small><b style="color:var(--miss)">${nf(r.n.unFalta)}</b></div>
+        <div><small>Acuracidade</small><b style="color:var(--tim)">${r.n.acur}%</b></div>
+      </div>
+      ${r.nota ? `<div class="rel-nota">${r.nota}</div>` : ''}
+      <div class="tabs no-print">${Object.entries(PREL_ABAS).map(([k, [nm]]) => `<button class="${relAba === k ? 'on' : ''}" onclick="setRelAba('${k}')">${nm}<span class="n">${nf(r.listas[k].length)}</span></button>`).join('')}</div>
+      <p class="rel-sec-t" style="margin-top:14px"><i class="dot" style="background:${cor}"></i>${nomeAba} — ${nf(L.length)} ${ehCel ? 'aparelho(s)' : 'produto(s)'}</p>
+      <div class="rel-list">${L.length ? tabela : `<div class="empty">${ic(relAba.endsWith('falta') ? 'check' : 'phone')}<b>${relAba.endsWith('falta') ? 'Nada faltando aqui' : 'Nenhum item nesta lista'}</b></div>`}</div>
+    </div>`;
+}
+async function copiarRelProd(){
+  const L = relAtual.listas[relAba] || [], ehCel = relAba[0] === 'c';
+  const txt = ehCel ? ['Nome\tCódigo de venda\tIMEI 1\tIMEI 2', ...L.map(x => [x.d, x.c, x.i1, x.i2].join('\t'))].join('\n')
+                    : ['Tipo\tNome\tCódigo de venda\tCódigo de barras\tCadastrado\tConferido\tDiferença', ...L.map(x => [TIPOS[x.t], x.d, x.c, x.e, x.q, x.cf, x.f ?? x.m ?? ''].join('\t'))].join('\n');
+  try { await navigator.clipboard.writeText(txt); } catch (e){ const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  toast(`${nf(L.length)} linha(s) copiadas. Cole no Excel ou no WhatsApp.`, 'ok');
+}
+function exportarRelProd(){
+  const r = relAtual, wb = XLSX.utils.book_new();
+  const res = XLSX.utils.aoa_to_sheet([
+    [r.meta.titulo], ['Loja', r.meta.loja || '—'], ['Data', fmt(r.meta.em)], ['Operador', r.meta.operador || '—'], [],
+    ['Celulares em estoque', r.n.celEst], ['Celulares encontrados', r.n.celOk], ['Celulares não encontrados', r.n.celFalta], ['Celulares vendidos', r.listas.cvend.length], [],
+    ['Acessórios/películas (unidades)', r.n.un], ['Unidades conferidas', r.n.unOk], ['Unidades faltando', r.n.unFalta], ['Acuracidade', r.n.acur + '%']
+  ]); res['!cols'] = [{ wch:32 }, { wch:26 }];
+  XLSX.utils.book_append_sheet(wb, res, 'Resumo');
+  Object.entries(PREL_ABAS).forEach(([k, [nm]]) => {
+    const rows = k[0] === 'c' ? r.listas[k].map(x => ({ 'Nome / modelo': x.d, 'Código de venda': x.c, 'IMEI 1': x.i1, 'IMEI 2': x.i2 }))
+      : r.listas[k].map(x => ({ 'Tipo': TIPOS[x.t], 'Nome / descrição': x.d, 'Código de venda': x.c, 'Código de barras': x.e, 'Cadastrado': x.q, 'Conferido': x.cf, 'Faltando': x.f ?? '', 'A mais': x.m ?? '' }));
+    const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ '': 'Nenhum item' }]); ws['!cols'] = [{ wch:28 }, { wch:18 }, { wch:20 }, { wch:20 }];
+    XLSX.utils.book_append_sheet(wb, ws, nm.slice(0, 31));
+  });
+  XLSX.writeFile(wb, `Relatorio_Aparelhos_Acessorios_${(r.meta.loja || 'loja').replace(/[^\w]+/g, '_')}_${String(r.meta.em).slice(0, 10)}.xlsx`);
+  toast('Relatório exportado.', 'ok');
+}
+
+/* ================= INIT ================= */
+$('#hoje').textContent = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+render();
+</script>
+</body>
+</html>
